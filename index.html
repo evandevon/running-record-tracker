@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  SECURITY: this rule tells the browser to block every network request this page
+  might try to make (uploads, tracking, loading outside code). Recordings can only
+  reach the folder the teacher chooses. Anyone can check this line in the source.
+-->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; font-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Running Record Tracker</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#5d6577; --line:#dde1e8; --accent:#1f6feb; --ok:#1a7f37; --bad:#d1242f; --warn:#9a6700; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:16px 24px; background:var(--ink); color:#fff; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; }
+  header h1 { margin:0; font-size:21px; }
+  header .ver { color:#c9cfdb; font-size:14px; }
+  main { max-width:900px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  h2 { margin:0 0 8px; font-size:18px; }
+  h3 { margin:14px 0 6px; font-size:15px; }
+  .muted { color:var(--muted); font-size:14px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-size:17px; padding:10px 18px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button:focus-visible, summary:focus-visible { outline:3px solid #8cb4ff; outline-offset:2px; }
+  .ok { color:var(--ok); font-weight:600; } .bad { color:var(--bad); font-weight:600; } .warn { color:var(--warn); font-weight:600; }
+  code, .mono { font-family:ui-monospace, Consolas, monospace; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td { padding:4px 6px; border-bottom:1px solid var(--line); }
+  .promise { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .promise ul { margin:4px 0 0; padding-left:20px; }
+  .promise li { margin-bottom:4px; }
+  .box { border-radius:8px; padding:10px 14px; }
+  .box.does { background:#eef8f0; border:1px solid #c6e8cf; }
+  .box.doesnt { background:#fdf0f0; border:1px solid #f2caca; }
+  details { border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin-top:10px; }
+  details > summary { cursor:pointer; font-weight:600; }
+  details ol, details ul { padding-left:20px; }
+  .alert { border-radius:8px; padding:12px 14px; margin-top:10px; }
+  .alert.warn { background:#fff8e5; border:1px solid #f0d58c; color:var(--ink); font-weight:400; }
+  .alert.ok { background:#eef8f0; border:1px solid #c6e8cf; color:var(--ink); font-weight:400; }
+  #tree { font-family:ui-monospace, Consolas, monospace; font-size:13px; white-space:pre; background:#f0f3f8; border-radius:8px; padding:10px; max-height:300px; overflow:auto; }
+  #changes div { font-family:ui-monospace, Consolas, monospace; font-size:13px; }
+  .add { color:var(--ok); } .chg { color:var(--warn); } .del { color:var(--bad); }
+  #log { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; max-height:220px; overflow:auto; background:#0f141c; color:#d7dde8; border-radius:8px; padding:8px 10px; }
+  #log .err { color:#ff8b8b; } #log .warn { color:#f2cc60; } #log .ok { color:#7ee787; }
+  footer { max-width:900px; margin:0 auto; padding:0 16px 24px; }
+  @media (max-width:700px) { .promise { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Running Record Tracker</h1>
+  <span class="ver" id="verHeader"></span>
+</header>
+
+<main>
+  <!-- What this tool does -->
+  <section aria-labelledby="h-promise">
+    <h2 id="h-promise">What this tool does and doesn't do</h2>
+    <div class="promise">
+      <div class="box does">
+        <strong>It does</strong>
+        <ul>
+          <li>Read and write only inside the <em>one folder</em> you choose.</li>
+          <li>Run entirely on this computer, in your browser.</li>
+          <li>Rely on your own OneDrive to back up that folder, as it does for any file you save.</li>
+        </ul>
+      </div>
+      <div class="box doesnt">
+        <strong>It doesn't</strong>
+        <ul>
+          <li>See any other folders or files on this computer or in your OneDrive.</li>
+          <li>Send recordings or student details anywhere. The page blocks itself from the internet.</li>
+          <li>Use accounts, sign-ins, tracking, analytics or a server.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="row">
+      <button id="btnProve">Test it: try to send data to the internet</button>
+      <span id="proveResult" class="muted"></span>
+    </div>
+    <details>
+      <summary>How to check this yourself</summary>
+      <ol>
+        <li><strong>Offline test:</strong> once this page has loaded, turn off Wi-Fi. Everything keeps working, because nothing here needs the internet.</li>
+        <li><strong>Network check (for IT):</strong> press F12, open the <em>Network</em> tab, and use the tool. No requests are made after the page loads.</li>
+        <li><strong>Read the code:</strong> this is one file with no outside libraries. The source is public on GitHub, and the version number at the top matches a GitHub release.</li>
+        <li><strong>See or remove access:</strong> while connected, a folder icon appears in the address bar. Click it, or go to <em>Site settings</em>, to see which folder this site can use or to remove access.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- Folder -->
+  <section aria-labelledby="h-folder">
+    <h2 id="h-folder">Choose your recordings folder</h2>
+    <p class="muted">Use a <strong>dedicated folder inside your OneDrive</strong>, for example <code>Reading Samples</code>. You can make one with the <em>New folder</em> button in the window that opens. Don't choose your whole OneDrive.</p>
+    <div class="row">
+      <button class="primary" id="btnChoose">Choose folder…</button>
+      <button id="btnReconnect" hidden>Reconnect</button>
+      <button id="btnForget" disabled>Disconnect</button>
+    </div>
+    <p>Connected: <strong id="folderName">none</strong> <span class="muted" id="permState"></span></p>
+    <div id="folderAlert"></div>
+  </section>
+
+  <!-- Diagnostics -->
+  <section aria-labelledby="h-diag">
+    <h2 id="h-diag">Diagnostics</h2>
+    <p class="muted">Checks that this computer and browser can save into your folder. You can ignore this unless something isn't working.</p>
+    <details>
+      <summary>Browser checks</summary>
+      <table id="caps"></table>
+    </details>
+    <details>
+      <summary>Write tests</summary>
+      <div class="row">
+        <button id="btnText" disabled>Write small text file</button>
+        <button id="btnBig" disabled>Write 1 MB file</button>
+        <button id="btnSub" disabled>Create nested folders + file</button>
+        <button id="btnClean" disabled>Delete test files</button>
+      </div>
+      <p class="muted">Test files go in a <code>_sync-test</code> subfolder. Each write is read back and checked.</p>
+    </details>
+    <details>
+      <summary>Watch the folder</summary>
+      <div class="row">
+        <button id="btnScan" disabled>Rescan now</button>
+        <label class="muted"><input type="checkbox" id="auto"> Auto-rescan every 10 s</label>
+        <span class="muted" id="scanInfo"></span>
+      </div>
+      <div id="changes" class="muted">Changes since the last scan appear here.</div>
+      <h3>Folder contents</h3>
+      <div id="tree">(not connected)</div>
+    </details>
+    <details>
+      <summary>Log</summary>
+      <div id="log"></div>
+    </details>
+  </section>
+</main>
+
+<footer class="muted">
+  <span id="verFooter"></span> · Source code: <a href="https://github.com/evandevon/running-record-tracker" rel="noreferrer">github.com/evandevon/running-record-tracker</a> · Not an official NSW Department of Education product.
+</footer>
+
+<script>
+"use strict";
+const APP_VERSION = '0.0.2';
+const $ = s => document.querySelector(s);
+const TEST_DIR = '_sync-test';
+let root = null, pending = null, lastSnap = null, autoTimer = null, busy = false;
+
+$('#verHeader').textContent = 'v' + APP_VERSION;
+$('#verFooter').textContent = 'Version ' + APP_VERSION;
+
+function log(msg, cls = '') {
+  const d = document.createElement('div');
+  d.className = cls;
+  d.textContent = new Date().toLocaleTimeString('en-AU') + '  ' + msg;
+  $('#log').prepend(d);
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* ---------- "prove it" network block test ---------- */
+let violation = null;
+document.addEventListener('securitypolicyviolation', e => { violation = e.violatedDirective; });
+async function prove() {
+  const out = $('#proveResult');
+  out.className = 'muted'; out.textContent = 'Trying…';
+  violation = null;
+  try {
+    await fetch('https://example.com/?test=would-this-leak', { mode: 'no-cors', cache: 'no-store' });
+    out.className = 'bad';
+    out.textContent = 'A request got through. Please report this.';
+    log('Network test: request was NOT blocked', 'err');
+  } catch (e) {
+    await new Promise(r => setTimeout(r, 50));
+    out.className = 'ok';
+    out.textContent = '✓ Blocked. This page cannot send anything to the internet' + (violation ? ` (browser rule: ${violation}).` : '.');
+    log('Network test: blocked as expected' + (violation ? ' by ' + violation : ''), 'ok');
+  }
+}
+
+/* ---------- checks ---------- */
+function checks() {
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
+  const can = 'showDirectoryPicker' in window;
+  const rows = [
+    ['Browser', null, browser],
+    ['Opened from', null, location.protocol === 'file:' ? 'a file on this computer' : location.origin],
+    ['Secure context', window.isSecureContext, ''],
+    ['Folder access', can, 'needs Chrome or Edge on a computer'],
+    ['Running as a normal tab', window.top === window.self, ''],
+    ['Can remember the folder', 'indexedDB' in window, ''],
+  ];
+  $('#caps').innerHTML = rows.map(([n, ok, x]) =>
+    `<tr><td>${esc(n)}</td><td class="${ok === null ? '' : ok ? 'ok' : 'bad'}">${ok === null ? '' : ok ? 'Yes' : 'No'}</td><td class="muted">${esc(x)}</td></tr>`).join('');
+  if (!can) {
+    $('#btnChoose').disabled = true;
+    $('#folderAlert').innerHTML = `<div class="alert warn">This browser (${esc(browser)}) can't save into folders. Please open this page in <strong>Chrome</strong> or <strong>Edge</strong> on a laptop or desktop.</div>`;
+  }
+  log(`Checks: ${browser}, folder access ${can ? 'available' : 'NOT available'}`, can ? 'ok' : 'err');
+}
+
+/* ---------- remembering the folder ---------- */
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('running-record-tracker', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbDo(mode, fn) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', mode); const req = fn(tx.objectStore('kv'));
+    tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error);
+  });
+}
+const idbGet = k => idbDo('readonly', s => s.get(k));
+const idbSet = (k, v) => idbDo('readwrite', s => s.put(v, k));
+const idbDel = k => idbDo('readwrite', s => s.delete(k));
+
+/* ---------- whole-OneDrive guard ---------- */
+const PERSONAL_FOLDERS = ['desktop', 'documents', 'pictures', 'music', 'videos', 'downloads', 'attachments', 'apps', 'microsoft teams chat files', 'recordings'];
+async function assessFolder(h) {
+  const reasons = [];
+  if (/^onedrive\b/i.test(h.name)) reasons.push(`its name ("${h.name}") looks like the top of your OneDrive`);
+  let total = 0, personal = [];
+  for await (const [name, e] of h.entries()) {
+    total++;
+    if (e.kind === 'directory' && PERSONAL_FOLDERS.includes(name.toLowerCase())) personal.push(name);
+    if (total > 500) break;
+  }
+  if (personal.length >= 2) reasons.push(`it contains personal folders (${personal.slice(0, 4).join(', ')})`);
+  return { risky: reasons.length > 0, reasons, total };
+}
+function askRisky(name, reasons) {
+  return new Promise(resolve => {
+    $('#folderAlert').innerHTML = `
+      <div class="alert warn" role="alert">
+        <strong>"${esc(name)}" looks like your whole OneDrive</strong>, because ${esc(reasons.join(' and '))}.<br>
+        This tool only needs one dedicated folder. Choosing a smaller folder means it can't even see anything else.
+        <div class="row">
+          <button class="primary" id="riskPick">Choose a different folder</button>
+          <button id="riskUse">Use this folder anyway</button>
+        </div>
+      </div>`;
+    $('#riskPick').onclick = () => { $('#folderAlert').innerHTML = ''; resolve(false); };
+    $('#riskUse').onclick = () => { $('#folderAlert').innerHTML = ''; resolve(true); };
+  });
+}
+
+/* ---------- connect / reconnect ---------- */
+async function choose() {
+  let h;
+  try { h = await showDirectoryPicker({ id: 'rrt-folder', mode: 'readwrite' }); }
+  catch (e) { if (e.name !== 'AbortError') log('Choose failed: ' + e.name + ' – ' + e.message, 'err'); return; }
+  const a = await assessFolder(h);
+  if (a.risky) {
+    log(`Warned: "${h.name}" looks like a whole OneDrive (${a.reasons.join('; ')})`, 'warn');
+    const useIt = await askRisky(h.name, a.reasons);
+    if (!useIt) { log('Teacher chose a different folder'); return choose(); }
+    log('Teacher chose to use it anyway', 'warn');
+  }
+  try { await idbSet('root', h); } catch (e) { log('Could not remember folder: ' + e.message, 'warn'); }
+  await connect(h, 'just chosen');
+}
+async function restore() {
+  if (!('showDirectoryPicker' in window)) return;
+  let h; try { h = await idbGet('root'); } catch (e) { log('Could not read remembered folder: ' + e.message, 'warn'); return; }
+  if (!h) return;
+  const p = await h.queryPermission({ mode: 'readwrite' });
+  if (p === 'granted') { await connect(h, 'reconnected automatically'); }
+  else {
+    pending = h;
+    const b = $('#btnReconnect'); b.hidden = false; b.textContent = `Reconnect to "${h.name}"`;
+    $('#permState').textContent = '(click Reconnect to continue)';
+    log(`Remembered "${h.name}", permission "${p}". One click needed.`, 'warn');
+  }
+}
+async function reconnect() {
+  if (!pending) return;
+  const p = await pending.requestPermission({ mode: 'readwrite' });
+  if (p === 'granted') { $('#btnReconnect').hidden = true; await connect(pending, 'reconnected'); }
+  else log('Permission refused: ' + p, 'err');
+}
+async function disconnect() {
+  try { await idbDel('root'); } catch { }
+  root = null; lastSnap = null; pending = null;
+  $('#btnReconnect').hidden = true;
+  $('#folderName').textContent = 'none'; $('#permState').textContent = ''; $('#tree').textContent = '(not connected)';
+  $('#folderAlert').innerHTML = '<div class="alert ok">Disconnected. This site no longer remembers the folder. To remove the browser permission completely, use the folder icon in the address bar or <em>Site settings</em>.</div>';
+  setEnabled(false);
+  log('Disconnected');
+}
+async function connect(h, how) {
+  root = h;
+  $('#folderName').textContent = h.name;
+  $('#permState').textContent = `(${how})`;
+  setEnabled(true);
+  log(`Connected to "${h.name}" (${how})`, 'ok');
+  lastSnap = null;
+  await scan();
+}
+function setEnabled(on) {
+  ['#btnText', '#btnBig', '#btnSub', '#btnClean', '#btnScan', '#btnForget'].forEach(s => $(s).disabled = !on);
+}
+
+/* ---------- write tests ---------- */
+async function testDir() { return root.getDirectoryHandle(TEST_DIR, { create: true }); }
+async function writeAndVerify(dir, name, data, label) {
+  const t0 = performance.now();
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable(); await w.write(data); await w.close();
+  const t1 = performance.now();
+  const f = await fh.getFile();
+  const back = new Uint8Array(await f.arrayBuffer());
+  const orig = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(await data.arrayBuffer());
+  const same = back.length === orig.length && back.every((v, i) => v === orig[i]);
+  log(`${label}: ${name} (${fmtSize(f.size)}), write ${Math.round(t1 - t0)} ms, ${same ? 'verified' : 'MISMATCH'}`, same ? 'ok' : 'err');
+}
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+async function guarded(fn) {
+  if (busy || !root) return; busy = true;
+  try { await fn(); } catch (e) { log('Failed: ' + e.name + ' – ' + e.message, 'err'); }
+  busy = false; scan();
+}
+const testText = () => guarded(async () => writeAndVerify(await testDir(), `text_${stamp()}.txt`, `Sync test ${new Date().toString()}\r\n`, 'Text file'));
+const testBig = () => guarded(async () => {
+  const bytes = new Uint8Array(1024 * 1024);
+  for (let i = 0; i < bytes.length; i += 65536) crypto.getRandomValues(bytes.subarray(i, i + 65536));
+  await writeAndVerify(await testDir(), `big_${stamp()}.bin`, new Blob([bytes]), '1 MB file');
+});
+const testSub = () => guarded(async () => {
+  const d = await (await (await testDir()).getDirectoryHandle('Students', { create: true })).getDirectoryHandle('Test Student', { create: true });
+  await writeAndVerify(d, `${stamp()}_sample.json`, JSON.stringify({ test: true, at: new Date().toISOString() }, null, 2), 'Nested folders');
+});
+const cleanUp = () => guarded(async () => {
+  try { await root.removeEntry(TEST_DIR, { recursive: true }); log('Deleted _sync-test', 'ok'); }
+  catch (e) { if (e.name === 'NotFoundError') log('Nothing to delete'); else throw e; }
+});
+
+/* ---------- scanning & change detection ---------- */
+function fmtSize(n) { return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB'; }
+async function walk(dir, prefix, snap, lines, depth) {
+  const entries = [];
+  for await (const [name, h] of dir.entries()) entries.push([name, h]);
+  entries.sort((a, b) => (a[1].kind === b[1].kind ? a[0].localeCompare(b[0]) : a[1].kind === 'directory' ? -1 : 1));
+  for (const [name, h] of entries) {
+    const path = prefix + name, indent = '  '.repeat(depth);
+    if (h.kind === 'directory') {
+      lines.push(`${indent}📁 ${name}/`); snap.set(path + '/', 'dir');
+      if (depth < 6) await walk(h, path + '/', snap, lines, depth + 1);
+    } else {
+      try { const f = await h.getFile(); snap.set(path, `${f.size}|${f.lastModified}`); lines.push(`${indent}📄 ${name}  (${fmtSize(f.size)}, ${new Date(f.lastModified).toLocaleString('en-AU')})`); }
+      catch (e) { snap.set(path, 'unreadable'); lines.push(`${indent}📄 ${name}  (can't read: ${e.name})`); }
+    }
+  }
+}
+async function scan() {
+  if (!root) return;
+  const t0 = performance.now(), snap = new Map(), lines = [];
+  try { await walk(root, '', snap, lines, 0); }
+  catch (e) { log('Scan failed: ' + e.name + ' – ' + e.message, 'err'); return; }
+  $('#tree').textContent = lines.length ? lines.join('\n') : '(empty folder)';
+  const files = [...snap.values()].filter(v => v !== 'dir').length;
+  $('#scanInfo').textContent = `${files} files · scanned ${new Date().toLocaleTimeString('en-AU')} in ${Math.round(performance.now() - t0)} ms`;
+  if (lastSnap) {
+    const out = [];
+    for (const [p, v] of snap) if (!lastSnap.has(p)) out.push(['add', '+ added    ' + p]); else if (lastSnap.get(p) !== v) out.push(['chg', '~ changed  ' + p]);
+    for (const p of lastSnap.keys()) if (!snap.has(p)) out.push(['del', '− removed  ' + p]);
+    if (out.length) {
+      $('#changes').innerHTML = `<div class="muted">At ${new Date().toLocaleTimeString('en-AU')}:</div>` + out.map(([c, s]) => `<div class="${c}">${esc(s)}</div>`).join('');
+      out.forEach(([, s]) => log('Change: ' + s.trim()));
+    }
+  }
+  lastSnap = snap;
+}
+
+/* ---------- wiring ---------- */
+$('#btnProve').onclick = prove;
+$('#btnChoose').onclick = choose;
+$('#btnReconnect').onclick = reconnect;
+$('#btnForget').onclick = disconnect;
+$('#btnText').onclick = testText;
+$('#btnBig').onclick = testBig;
+$('#btnSub').onclick = testSub;
+$('#btnClean').onclick = cleanUp;
+$('#btnScan').onclick = () => scan();
+$('#auto').onchange = e => {
+  clearInterval(autoTimer);
+  if (e.target.checked) { autoTimer = setInterval(() => { if (!busy) scan(); }, 10000); log('Auto-rescan on'); }
+};
+checks();
+restore();
+</script>
+</body>
+</html>
