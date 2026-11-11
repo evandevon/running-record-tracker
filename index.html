@@ -253,7 +253,7 @@
           <div id="customWrap" hidden>
             <label for="customFmt">Custom pattern</label>
             <input type="text" id="customFmt" class="mono">
-            <p class="muted">Tokens: <code>{date} {audate} {year} {term} {week} {tw} {first} {surname} {class} {passage}</code></p>
+            <p class="muted">Tokens: <code>{name} {termweek} {date} {audate} {year} {term} {week} {week2} {tw} {first} {surname} {class} {passage}</code></p>
           </div>
         </div>
         <div>
@@ -300,14 +300,16 @@
 
 <script>
 "use strict";
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const TEST_DIR = '_sync-test';
 const STUDENTS_DIR = 'Students';
+const DETAILS_DIR = 'Recording details';
 
 const PRESETS = {
-  dateFirst:    { label: 'Date first (recommended)', fmt: '{date}_{tw}_{surname}-{first}_{passage}', note: 'Sorts in date order in any folder.' },
+  simple:       { label: 'Simple (recommended)',     fmt: '{name} - {year} {termweek} {passage}',     note: 'Easy to read at a glance. Sorts by year, term and week inside each child\'s folder.' },
+  dateFirst:    { label: 'Date first',               fmt: '{date}_{tw}_{surname}-{first}_{passage}', note: 'Sorts in date order in any folder.' },
   studentFirst: { label: 'Student first',            fmt: '{surname}-{first}_{year}-{tw}_{passage}', note: 'Groups each child\'s files together.' },
   classFirst:   { label: 'Class first',              fmt: '{class}_{surname}-{first}_{date}',        note: 'For teachers who work by class.' },
   termOnly:     { label: 'Term only',                fmt: '{year}-T{term}_{surname}-{first}',        note: 'Simplest. One reading per term.' },
@@ -316,8 +318,8 @@ const PRESETS = {
 };
 
 const DEFAULT_CFG = {
-  schema: 1, className: '', term: 1, termStart: '', students: '',
-  preset: 'dateFirst', customFmt: '{date}_{surname}-{first}',
+  schema: 2, className: '', term: 1, termStart: '', students: '', studentIds: {},
+  preset: 'simple', customFmt: '{name} - {date}',
   passageMode: 'same', defaultPassage: '', passages: [], studentPassages: {},
 };
 
@@ -343,6 +345,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&l
 const pad = n => String(n).padStart(2, '0');
 const clean = s => (s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/['’`]/g, '').replace(/[^A-Za-z0-9 \-]/g, '').trim();
 const dash = s => clean(s).replace(/\s+/g, '-');
+// Keeps real names (apostrophes, accents, spaces); removes only what Windows/OneDrive forbid.
+const safeName = s => (s || '').normalize('NFC').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '');
 const wordCount = t => (t || '').trim() ? t.trim().split(/\s+/).length : 0;
 function status(msg, cls = 'muted') { const s = $('#recStatus'); s.className = cls; s.textContent = msg; }
 
@@ -512,10 +516,12 @@ async function loadConfigFromFolder() {
   try {
     const txt = await readText(state.root, 'config.json');
     if (txt) {
-      state.cfg = Object.assign(structuredClone(DEFAULT_CFG), JSON.parse(txt));
+      const raw = JSON.parse(txt);
+      state.cfg = migrateCfg(raw);
       log('Loaded setup from config.json', 'ok');
+      if (ensureIds() || (raw.schema || 1) < 2) { await saveConfig(); log('Updated config.json to the new format'); }
     } else {
-      await saveConfig();
+      ensureIds(); await saveConfig();
       log('No config.json yet, so created one');
     }
   } catch (e) { log('config.json problem: ' + e.message, 'err'); }
@@ -532,36 +538,53 @@ async function saveConfig() {
   } catch (e) { log('Could not save config.json: ' + e.message, 'err'); }
 }
 async function ensureReadme() {
-  if (await exists(state.root, 'README.txt')) return;
+  // Write the guide if missing, or replace one written by an older version of this app.
+  const old = await readText(state.root, 'README.txt');
+  if (old !== null && (!old.includes('Running Record Tracker v') || old.includes('Running Record Tracker v' + APP_VERSION + ' '))) return;
   const text = [
     'READING SAMPLES: HOW THIS FOLDER IS ORGANISED',
     '==============================================',
     '',
-    'Students/<Surname First>/',
-    '    One folder per child. Keep it when the child changes class or year,',
-    '    so their recordings stay together from year to year.',
+    'Students/',
+    '  Billy Bob/                                One folder per child.',
+    '    Billy Bob - 2026 Term4 Week02 P1.webm   A recording.',
+    '    Billy Bob - 2026 Term4 Week07 P1.webm',
+    '    Recording details/                      Details for each recording.',
+    '      Billy Bob - 2026 Term4 Week02 P1.json',
     '',
-    'Each recording has two files with the same name:',
-    '    .webm   the audio (opens in Chrome, Edge or VLC)',
-    '    .json   details: student, date, term, week, passage, and later',
-    '            any marked errors and notes. Please don\'t delete these.',
+    'Recordings are named: child - year term week passage.',
+    'A second recording in the same week gets (2), (3) and so on.',
+    'The audio (.webm) opens in Chrome, Edge or VLC.',
+    '',
+    'RECORDING DETAILS',
+    '    Each recording has a matching file in "Recording details" with the',
+    '    student, date, term, week and passage, and later any marked errors',
+    '    and notes. Please don\'t delete or rename these.',
+    '',
+    'KEEP EACH CHILD\'S FOLDER TOGETHER',
+    '    The folder follows the child from year to year. When a child moves',
+    '    class or teacher, pass on (or share) their folder rather than',
+    '    splitting it up. If two children share a name, add an initial in the',
+    '    class list (e.g. "Billy Bob J") so each gets their own folder.',
     '',
     'config.json',
     '    The class list, passages and settings used by Running Record Tracker.',
     '    Any computer that opens this folder in the app uses the same setup.',
     '',
-    'File names follow the naming style chosen in the app\'s Setup.',
-    'Date-first names (YYYY-MM-DD) sort in date order.',
+    'WHERE THIS FOLDER LIVES',
+    '    This can be in your own OneDrive or in a shared school location',
+    '    (e.g. a staff Teams/SharePoint folder synced to your laptop). A shared',
+    '    location means recordings stay with the school when staff change.',
     '',
     'PRIVACY',
     '    These recordings are students\' personal information. Keep this',
     '    folder on school/department storage only, and follow your school\'s',
     '    consent and retention guidance.',
     '',
-    'Created by Running Record Tracker v' + APP_VERSION + ' on ' + new Date().toLocaleDateString('en-AU'),
+    'Written by Running Record Tracker v' + APP_VERSION + ' on ' + new Date().toLocaleDateString('en-AU'),
     'https://github.com/evandevon/running-record-tracker',
   ].join('\r\n');
-  try { await writeFile(state.root, 'README.txt', text); log('Wrote README.txt (organisation guide)', 'ok'); }
+  try { await writeFile(state.root, 'README.txt', text); log(old === null ? 'Wrote README.txt (organisation guide)' : 'Updated README.txt to this version', 'ok'); }
   catch (e) { log('Could not write README.txt: ' + e.message, 'err'); }
 }
 
@@ -572,9 +595,38 @@ function students() {
     if (l.includes(',')) { [surname, first] = l.split(',').map(s => s.trim()); }
     else { const p = l.split(/\s+/); surname = p.length > 1 ? p.pop() : ''; first = p.join(' '); }
     first = first || ''; surname = surname || '';
-    const key = (clean(surname) + ' ' + clean(first)).trim() || 'Unknown';
-    return { first, surname, key, display: (first + ' ' + surname).trim() };
+    const display = (first + ' ' + surname).trim();
+    const key = safeName(display) || 'Unknown';                          // folder name: "First Surname"
+    const oldKey = (clean(surname) + ' ' + clean(first)).trim() || 'Unknown'; // v0.1.0 style, for migration
+    return { first, surname, key, oldKey, display };
   });
+}
+function duplicateKeys() {
+  const seen = new Set(), dup = new Set();
+  for (const s of students()) { const k = s.key.toLowerCase(); if (seen.has(k)) dup.add(k); seen.add(k); }
+  return dup;
+}
+const isDuplicate = st => duplicateKeys().has(st.key.toLowerCase());
+function ensureIds() {
+  let changed = false;
+  state.cfg.studentIds = state.cfg.studentIds || {};
+  for (const s of students()) if (!state.cfg.studentIds[s.key]) { state.cfg.studentIds[s.key] = crypto.randomUUID(); changed = true; }
+  return changed;
+}
+function migrateCfg(c) {
+  const out = Object.assign(structuredClone(DEFAULT_CFG), c);
+  if (!c.schema || c.schema < 2) {
+    if (!c.preset || c.preset === 'dateFirst') out.preset = 'simple';
+    const sp = {};
+    const tmpState = state.cfg; state.cfg = out;
+    for (const s of students()) {
+      if (c.studentPassages && c.studentPassages[s.oldKey]) sp[s.key] = c.studentPassages[s.oldKey];
+      else if (c.studentPassages && c.studentPassages[s.key]) sp[s.key] = c.studentPassages[s.key];
+    }
+    state.cfg = tmpState;
+    out.studentPassages = sp; out.studentIds = c.studentIds || {}; out.schema = 2;
+  }
+  return out;
 }
 const getPassage = id => state.cfg.passages.find(p => p.id === id) || null;
 function passageFor(st) {
@@ -599,6 +651,8 @@ function tokens(st, d, passage) {
   return {
     date: `${y}-${m}-${dd}`, audate: `${dd}-${m}-${y}`, year: y, term, week: wk ?? '',
     tw: `T${term}` + (wk ? `W${wk}` : ''),
+    termweek: `Term${term}` + (wk ? ` Week${pad(wk)}` : ''), week2: wk ? pad(wk) : '',
+    name: safeName((st.first + ' ' + st.surname).trim()),
     first: dash(st.first), surname: dash(st.surname),
     class: dash(state.cfg.className), passage: dash(passage ? passage.id : ''),
   };
@@ -607,13 +661,14 @@ function buildName(st, d = new Date()) {
   const fmt = state.cfg.preset === 'custom' ? state.cfg.customFmt : PRESETS[state.cfg.preset].fmt;
   const t = tokens(st, d, passageFor(st));
   let name = fmt.replace(/\{(\w+)\}/g, (_, k) => (t[k] ?? ''));
-  name = name.replace(/[^A-Za-z0-9_\-]/g, '').replace(/-{2,}/g, '-').replace(/_{2,}/g, '_')
-             .replace(/_-|-_/g, '_').replace(/^[-_]+|[-_]+$/g, '');
+  name = safeName(name).replace(/-{2,}/g, '-').replace(/_{2,}/g, '_')
+             .replace(/_-|-_/g, '_').replace(/^[-_ ]+|[-_ ]+$/g, '');
   return name || 'recording';
 }
-async function uniqueBase(dir, base, ext) {
+async function uniqueBase(audioDir, detailsDir, base, ext) {
+  const suffix = base.includes(' ') ? n => ` (${n})` : n => `_${n}`;
   let b = base, n = 2;
-  while (await exists(dir, b + ext) || await exists(dir, b + '.json')) b = `${base}_${n++}`;
+  while (await exists(audioDir, b + ext) || await exists(detailsDir, b + '.json')) b = base + suffix(n++);
   return b;
 }
 
@@ -632,7 +687,7 @@ function bindSetup() {
     const c = state.cfg;
     c.className = $('#className').value; c.term = parseInt($('#term').value, 10) || 1; c.termStart = $('#termStart').value;
     c.students = $('#students').value; c.preset = $('#preset').value; c.customFmt = $('#customFmt').value;
-    renderAll(); queueSave();
+    ensureIds(); renderAll(); queueSave();
   };
   ['#className', '#term', '#termStart', '#students', '#preset', '#customFmt'].forEach(s => $(s).addEventListener('input', onChange));
   $('#term').addEventListener('change', () => refreshTermDone());
@@ -702,8 +757,12 @@ function renderSetup() {
   $('#customWrap').hidden = c.preset !== 'custom';
   $('#presetNote').textContent = PRESETS[c.preset].note;
   const list = students();
-  $('#studentCount').textContent = list.length ? `${list.length} student${list.length === 1 ? '' : 's'}` : '';
-  const st = list[0] || { first: 'Mia', surname: 'Nguyen', key: 'Nguyen Mia' };
+  const dups = [...new Set(list.filter(isDuplicate).map(s => s.display))];
+  $('#studentCount').className = dups.length ? 'bad' : 'muted';
+  $('#studentCount').textContent = dups.length
+    ? `Same name twice: ${dups.join(', ')}. Add an initial to one (e.g. "${dups[0]} J") so each child gets their own folder.`
+    : (list.length ? `${list.length} student${list.length === 1 ? '' : 's'}` : '');
+  const st = list[0] || { first: 'Billy', surname: 'Bob', key: 'Billy Bob' };
   $('#namePreview').textContent = `${STUDENTS_DIR}/${st.key}/${buildName(st)}${extFor(pickMime())}`;
   $('#defaultPassage').innerHTML = passageOptions(c.defaultPassage, c.passages.length ? '(no passage)' : '(add a passage below)');
   $('#perStudentNote').hidden = c.passageMode !== 'perStudent';
@@ -719,6 +778,7 @@ function renderQueue() {
     if (ses === 'recorded') badge += '<span class="badge rec">recorded</span> ';
     else if (ses === 'absent') badge += '<span class="badge abs">absent</span> ';
     else if (ses === 'skipped') badge += '<span class="badge">skipped</span> ';
+    if (isDuplicate(s)) badge += '<span class="badge abs">same name twice</span> ';
     if (state.termDone.has(s.key)) badge += '<span class="badge term">✓ this term</span>';
     return `<li data-i="${i}" class="${i === state.idx ? 'current' : ''}" ${i === state.idx ? 'aria-current="true"' : ''}><span>${esc(s.display)}</span><span>${badge}</span></li>`;
   }).join('') : '<li class="muted" style="cursor:default">No students yet. Add a class list in Setup.</li>';
@@ -806,6 +866,7 @@ async function toggleRec() {
   if (!state.root) { status('Choose a recordings folder first.', 'warn'); return; }
   const st = students()[state.idx];
   if (!st) { status('Add a class list in Setup first.', 'warn'); $('#setupClass').open = true; return; }
+  if (isDuplicate(st)) { status(`There are two students called ${st.display}. Add an initial to one of them in Setup (e.g. "${st.display} J") so each gets their own folder.`, 'bad'); $('#setupClass').open = true; return; }
   try { await ensureMic(); }
   catch (e) { status('Microphone blocked or unavailable: ' + e.message, 'bad'); log('Mic error: ' + e.name + ' – ' + e.message, 'err'); return; }
   const mime = pickMime();
@@ -846,23 +907,24 @@ async function saveRecording(st, passage, mime, secs, when) {
     if (blob.size === 0) throw new Error('the recording was empty (check the microphone)');
     const studentsDir = await state.root.getDirectoryHandle(STUDENTS_DIR, { create: true });
     const sDir = await studentsDir.getDirectoryHandle(st.key, { create: true });
-    const base = await uniqueBase(sDir, buildName(st, when), ext);
+    const dDir = await sDir.getDirectoryHandle(DETAILS_DIR, { create: true });
+    const base = await uniqueBase(sDir, dDir, buildName(st, when), ext);
     await writeFile(sDir, base + ext, blob);
     const tk = tokens(st, when, passage);
     const meta = {
-      app: 'Running Record Tracker', appVersion: APP_VERSION, schema: 1,
-      student: { first: st.first, surname: st.surname, folder: st.key },
+      app: 'Running Record Tracker', appVersion: APP_VERSION, schema: 2,
+      student: { id: state.cfg.studentIds[st.key] || null, first: st.first, surname: st.surname, folder: st.key },
       className: state.cfg.className,
       recordedAt: when.toISOString(), date: tk.date, year: tk.year, term: state.cfg.term, week: weekOf(when),
       passage: passage ? { id: passage.id, level: passage.level || '', text: passage.text || '', wordCount: passage.wordCount || wordCount(passage.text) } : null,
       audioFile: base + ext, mimeType: mime, durationSec: Math.round(secs * 10) / 10, sizeBytes: blob.size,
       status: 'not reviewed', trim: null, marks: [], notes: '',
     };
-    await writeFile(sDir, base + '.json', JSON.stringify(meta, null, 2));
+    await writeFile(dDir, base + '.json', JSON.stringify(meta, null, 2));
     log(`Saved ${st.display}: ${STUDENTS_DIR}/${st.key}/${base}${ext} (${(blob.size / 1024).toFixed(0)} KB, ${meta.durationSec}s)`, 'ok');
     state.session[st.key] = 'recorded';
     state.termDone.add(st.key);
-    setLast({ dir: sDir, audio: base + ext, json: base + '.json', key: st.key, display: st.display, blob, idx: students().findIndex(s => s.key === st.key) });
+    setLast({ dir: sDir, jsonDir: dDir, audio: base + ext, json: base + '.json', key: st.key, display: st.display, blob, idx: students().findIndex(s => s.key === st.key) });
     status(`✓ Saved ${st.display} (${meta.durationSec}s).`, 'ok');
     advanceToNextPending();
   } catch (e) {
@@ -886,7 +948,7 @@ async function deleteLast() {
   if (!confirm(`Delete ${l.audio}? It goes to the OneDrive recycle bin.`)) return;
   try {
     await l.dir.removeEntry(l.audio);
-    try { await l.dir.removeEntry(l.json); } catch { }
+    try { await l.jsonDir.removeEntry(l.json); } catch { }
     delete state.session[l.key];
     log('Deleted ' + l.audio, 'warn');
     if (l.idx >= 0) state.idx = l.idx;
@@ -906,12 +968,16 @@ async function refreshTermDone() {
       const year = new Date().getFullYear();
       for await (const [folder, dh] of sd.entries()) {
         if (dh.kind !== 'directory') continue;
-        for await (const [fn, fh] of dh.entries()) {
-          if (fh.kind !== 'file' || !fn.endsWith('.json')) continue;
-          try {
-            const m = JSON.parse(await (await fh.getFile()).text());
-            if (m.year === year && m.term === state.cfg.term) { set.add(folder); break; }
-          } catch { }
+        const dirs = [dh];
+        try { dirs.push(await dh.getDirectoryHandle(DETAILS_DIR)); } catch { }
+        outer: for (const d of dirs) {
+          for await (const [fn, fh] of d.entries()) {
+            if (fh.kind !== 'file' || !fn.endsWith('.json')) continue;
+            try {
+              const m = JSON.parse(await (await fh.getFile()).text());
+              if (m.year === year && m.term === state.cfg.term) { set.add(folder); break outer; }
+            } catch { }
+          }
         }
       }
     } catch { /* no Students folder yet */ }
@@ -1021,7 +1087,7 @@ function init() {
   window.addEventListener('beforeunload', e => { if (isRecording() || state.saving) { e.preventDefault(); e.returnValue = ''; } });
 
   (async () => {
-    try { const c = await idbGet('cfg'); if (c) state.cfg = Object.assign(structuredClone(DEFAULT_CFG), c); } catch { }
+    try { const c = await idbGet('cfg'); if (c) state.cfg = migrateCfg(c); } catch { }
     try { state.micId = (await idbGet('micId')) || ''; } catch { }
     cfgToForm(); renderAll();
     await restore();

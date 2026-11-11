@@ -2,7 +2,7 @@
 
 A browser tool for teachers to record students reading aloud several times a year and keep the recordings organised, so you can hear whether their reading has improved.
 
-**Status:** v0.1.0, the batch recorder. You can set up a class list and passages, then record students one after another; each recording is saved and named automatically. Reviewing and marking recordings comes next.
+**Status:** v0.1.1, the batch recorder. You can set up a class list and passages, then record students one after another; each recording is saved and named automatically. Reviewing and marking recordings comes next.
 
 ## Quick start
 1. Open the page in **Chrome or Edge** on a laptop.
@@ -10,7 +10,7 @@ A browser tool for teachers to record students reading aloud several times a yea
 3. In **Setup**, paste your class list and add a passage (optional).
 4. Press **Record** (or the Space bar) for the first student, then press it again to stop. The recording is saved and the next student comes up.
 
-Recordings are saved as `Students/<Surname First>/<name>.webm`, with a `.json` details file beside each one. WebM plays in Chrome, Edge and VLC. MP3 export is planned.
+Recordings are saved as `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.webm`, with a details file for each in `Students/Billy Bob/Recording details/`. WebM plays in Chrome, Edge and VLC. MP3 export is planned.
 
 ## How it works
 - It runs entirely in your browser (Chrome or Edge on a laptop or desktop).

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 (2026-11-11): simpler names and tidier folders
+- New default naming: `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.webm`. Week numbers are padded so they sort correctly everywhere.
+- A second recording in the same week gets ` (2)`, ` (3)`.
+- Folders are named first name first, and real names are kept (apostrophes, accents). Only characters Windows/OneDrive forbid are removed.
+- Details files now go in a `Recording details` folder inside each child's folder, so the child's folder shows just the audio.
+- Each student gets a hidden ID, saved in `config.json` and each details file, to help with name changes later.
+- Warns about two students with the same name, and won't record until one has an initial added.
+- README.txt in the folder is updated with the new layout and advice on shared or personal storage. Older app-written READMEs are replaced automatically.
+- Settings from 0.1.0 are upgraded automatically (Date-first naming switches to the new default, and per-student passages carry over).
+
 ## 0.1.0 (2026-11-11): batch recorder
 - Class list (one per line, "First Surname" or "Surname, First"), class name, term and term start date (week numbers worked out automatically).
 - Batch recording queue: one big Record/Stop button, auto-advance to the next student, Back / Skip / Absent, and keyboard shortcuts (Space, ←, →, A).
