@@ -2,16 +2,19 @@
 
 A browser tool for teachers to record students reading aloud several times a year and keep the recordings organised, so you can hear whether their reading has improved.
 
-**Status:** v0.2.0. Record students one after another (each recording is saved and named automatically), then use the **Library** to play any child's recordings, compare then vs now, and see who has been recorded each term. Trimming and marking errors come next.
+**Status:** v0.3.0. Record students one after another, saved as MP3s that carry the student, date and passage text inside the file. The **Library** shows each child's full recording history: play any recording, or tick several and play them back to back. Trimming and marking errors come next.
 
 ## Quick start
 1. Open the page in **Chrome or Edge** on a laptop.
 2. Click **Choose folder…** and pick (or make) a dedicated folder inside your OneDrive, e.g. `Reading Samples`.
 3. In **Setup**, paste your class list and add a passage (optional).
 4. Press **Record** (or the Space bar) for the first student, then press it again to stop. The recording is saved and the next student comes up.
-5. In the **Library**, open a student to hear their recordings, or use **Then vs now** to play two back to back. The **Term grid** shows who still needs recording this term.
+5. In the **Library**, pick a student to see every recording they've had. Press ▶ on any, or tick several and press **Play selected**. **Term overview** shows who still needs recording this term.
 
-Recordings are saved as `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.webm`, with a details file for each in `Students/Billy Bob/Recording details/`. WebM plays in Chrome, Edge and VLC. MP3 export is planned.
+Recordings are saved as `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.mp3`, with a details file for each in `Students/Billy Bob/Recording details/`. MP3s play anywhere; the passage text is stored in the file's lyrics tag. (WebM can be chosen instead in Setup.)
+
+## Credits
+MP3 encoding uses [LAME](https://lame.sourceforge.io) via [lamejs](https://github.com/zhuker/lamejs) (LGPL-3.0). An unmodified copy is in `vendor/lame.min.js` (licence: `vendor/LAME-LICENSE.txt`) and is embedded in `index.html` as its own clearly marked block. It runs only in the browser.
 
 ## How it works
 - It runs entirely in your browser (Chrome or Edge on a laptop or desktop).

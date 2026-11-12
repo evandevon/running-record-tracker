@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 (2026-11-12): MP3 and full recording history
+- **MP3 by default.** Recordings are converted to MP3 (mono, 64 kbps, about 0.5 MB a minute) in the browser by the built-in LAME encoder, so nothing is uploaded. WebM is still available in Setup → Audio format.
+- **Details inside the MP3.** Each MP3 carries the student, title, date, term/week and passage ID, and the passage text is stored as the file's "lyrics". If the conversion ever fails, the recording is saved as WebM instead and the teacher is told.
+- **Convert WebM to MP3.** A one-click button in the Library converts older WebM recordings. Each MP3 is saved and checked before the WebM is removed, and the details file is updated.
+- **New Library layout ("Recording history").** Pick a student on the left to see every recording they've ever had as a timeline grouped by year. Press ▶ to play any one, or tick several and press **Play selected** to hear them back to back, oldest first. A note says whether the ticked recordings use the same passage. Passages are colour-coded.
+- Previous/next student buttons, search, and "This class only".
+- Delete any recording from its history (it goes to the OneDrive recycle bin).
+- **Term overview** (formerly Term grid): click a name to open that student's history, or ▶ to jump there and play.
+- Space plays/pauses in the Library, and starts/stops recording elsewhere, so a stray Space press while listening doesn't start a recording.
+- The README written into the folder now describes MP3s.
+
 ## 0.2.0 (2026-11-12): library
 - New **Library** section that reads every recording in the folder.
 - **By student:** each child's recordings in date order, with date, term/week, passage, length and file name, and a ▶ button for each.

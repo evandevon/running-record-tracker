@@ -6,7 +6,7 @@ _For principals, IT staff and teachers. Applies to version 0.0.2 and later unles
 A single web page that teachers open in Chrome or Edge. It saves reading recordings and their details into a folder the teacher chooses, ideally a dedicated folder inside the school's OneDrive.
 
 ## What data it handles
-- Audio recordings of students reading (from v0.1), plus details such as student name, date, term and passage, saved as small text (JSON) files next to each recording.
+- Audio recordings of students reading (MP3 by default, which also stores the student's name, date and passage text inside the file), plus details such as student name, date, term and passage, saved as small text (JSON) files next to each recording.
 - All of it is stored **only** in the folder the teacher chooses. The school's existing storage (for example OneDrive) holds and backs up the data, under the school's normal controls.
 
 ## What it can and can't access
@@ -21,7 +21,7 @@ The browser enforces these limits, not just the tool. The teacher must approve f
 The tool also warns the teacher if the folder they pick looks like their whole OneDrive, and asks them to pick a dedicated folder instead.
 
 ## No uploads: how this is enforced
-The page includes a **Content Security Policy**, a standard browser security rule, with `connect-src 'none'` and `default-src 'none'`. This tells the browser to block every network request the page tries to make, including uploads, tracking and loading outside code. The tool loads no third-party code: no analytics, no fonts and no libraries.
+The page includes a **Content Security Policy**, a standard browser security rule, with `connect-src 'none'` and `default-src 'none'`. This tells the browser to block every network request the page tries to make, including uploads, tracking and loading outside code. The tool loads nothing from the internet: no analytics, fonts or libraries. The only third-party code is the LAME MP3 encoder, which is embedded in the page itself (an unmodified, clearly marked copy, also in `vendor/`). It converts audio on the computer and makes no network requests.
 
 ## How to verify
 1. **Test button:** the page has a "Test it: try to send data to the internet" button. The browser blocks the attempt and the page shows that it did.
