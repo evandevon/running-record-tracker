@@ -2,13 +2,14 @@
 
 A browser tool for teachers to record students reading aloud several times a year and keep the recordings organised, so you can hear whether their reading has improved.
 
-**Status:** v0.1.1, the batch recorder. You can set up a class list and passages, then record students one after another; each recording is saved and named automatically. Reviewing and marking recordings comes next.
+**Status:** v0.2.0. Record students one after another (each recording is saved and named automatically), then use the **Library** to play any child's recordings, compare then vs now, and see who has been recorded each term. Trimming and marking errors come next.
 
 ## Quick start
 1. Open the page in **Chrome or Edge** on a laptop.
 2. Click **Choose folder…** and pick (or make) a dedicated folder inside your OneDrive, e.g. `Reading Samples`.
 3. In **Setup**, paste your class list and add a passage (optional).
 4. Press **Record** (or the Space bar) for the first student, then press it again to stop. The recording is saved and the next student comes up.
+5. In the **Library**, open a student to hear their recordings, or use **Then vs now** to play two back to back. The **Term grid** shows who still needs recording this term.
 
 Recordings are saved as `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.webm`, with a details file for each in `Students/Billy Bob/Recording details/`. WebM plays in Chrome, Edge and VLC. MP3 export is planned.
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 (2026-11-12): library
+- New **Library** section that reads every recording in the folder.
+- **By student:** each child's recordings in date order, with date, term/week, passage, length and file name, and a ▶ button for each.
+- **Then vs now:** pick any two of a child's recordings (first and latest by default) and play them back to back. Shows how far apart they are, and warns when the passages differ.
+- **Term grid:** students down the side, Terms 1–4 across, for any year. Click a cell to hear that term's latest recording. Shows how many are recorded per term and who is still to record this term.
+- A player that stays visible while scrolling; search; "This class only" toggle (untick to see every student folder, including past students).
+- Audio files without a details file (e.g. copied in from elsewhere) still appear, flagged.
+- "✓ this term" badges on the Record screen now come from the same scan.
+
 ## 0.1.1 (2026-11-11): simpler names and tidier folders
 - New default naming: `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.webm`. Week numbers are padded so they sort correctly everywhere.
 - A second recording in the same week gets ` (2)`, ` (3)`.

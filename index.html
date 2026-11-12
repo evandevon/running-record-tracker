@@ -80,6 +80,22 @@
   .badge.term { background:#ddf4ff; color:#0969da; } .badge.pass { background:#f3eefc; color:#6639ba; }
   kbd { font-family:inherit; font-size:12px; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; background:#fff; }
   #lastBox { margin-top:12px; }
+  /* library */
+  .tabs { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .tabs button { border:0; border-radius:0; }
+  .tabs button[aria-selected=true] { background:var(--ink); color:#fff; }
+  .player { position:sticky; top:0; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:8px 0 12px; box-shadow:0 2px 6px rgba(0,0,0,.04); }
+  .player audio { width:360px; max-width:100%; }
+  details.libstudent { padding:6px 12px; margin-top:6px; }
+  details.libstudent > summary { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-weight:400; }
+  .compare { background:#f6f8fb; border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin:10px 0; }
+  .compare select { width:auto; max-width:100%; }
+  table.recs th, table.termgrid th { text-align:left; font-size:13px; color:var(--muted); font-weight:600; padding:4px 6px; border-bottom:1px solid var(--line); }
+  table.recs td { vertical-align:middle; }
+  .gridwrap { overflow:auto; }
+  table.termgrid td, table.termgrid tbody th, table.termgrid tfoot th { padding:5px 8px; border-bottom:1px solid var(--line); color:var(--ink); font-size:14px; }
+  table.termgrid .curterm { background:#f1f6ff; }
+  table.termgrid tfoot th, table.termgrid tfoot td { border-top:2px solid var(--line); }
   /* diagnostics */
   #tree { font-family:ui-monospace, Consolas, monospace; font-size:13px; white-space:pre; background:#f0f3f8; border-radius:8px; padding:10px; max-height:300px; overflow:auto; }
   #changes div { font-family:ui-monospace, Consolas, monospace; font-size:13px; }
@@ -186,6 +202,27 @@
         <p class="muted">Click a name to jump to that student. <span class="badge term">✓ this term</span> means a recording already exists for this term.</p>
       </div>
     </div>
+  </section>
+
+  <!-- ===================== LIBRARY ===================== -->
+  <section aria-labelledby="h-lib">
+    <h2 id="h-lib">Library</h2>
+    <div class="row">
+      <div class="tabs" role="tablist" aria-label="Library view">
+        <button role="tab" id="tabStudents" aria-selected="true">By student</button>
+        <button role="tab" id="tabGrid" aria-selected="false">Term grid</button>
+      </div>
+      <label class="inline"><input type="checkbox" id="libClassOnly" checked> This class only</label>
+      <input type="search" id="libSearch" placeholder="Find a student…" aria-label="Find a student" style="max-width:200px">
+      <span id="libYearWrap" hidden><select id="libYear" aria-label="Year" style="width:auto"></select></span>
+      <button class="small" id="btnLibScan" disabled>Rescan folder</button>
+      <span class="muted" id="libInfo"></span>
+    </div>
+    <div class="player">
+      <audio id="libPlayer" controls></audio>
+      <span class="muted" id="libNow">Nothing playing</span>
+    </div>
+    <div id="libBody"><p class="muted">Connect a folder to see recordings.</p></div>
   </section>
 
   <!-- ===================== SETUP ===================== -->
@@ -300,7 +337,7 @@
 
 <script>
 "use strict";
-const APP_VERSION = '0.1.1';
+const APP_VERSION = '0.2.0';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const TEST_DIR = '_sync-test';
@@ -485,6 +522,7 @@ async function disconnect() {
   if (isRecording()) return;
   try { await idbDel('root'); } catch { }
   state.root = null; state.lastSnap = null; state.pending = null; state.termDone = new Set();
+  LIB.students = []; LIB.scannedAt = null;
   $('#btnReconnect').hidden = true;
   setFolderName('none'); $('#permState').textContent = ''; $('#tree').textContent = '(not connected)';
   $('#folderAlert').innerHTML = '<div class="alert ok">Disconnected. To remove the browser permission completely, use the folder icon in the address bar or <em>Site settings</em>.</div>';
@@ -751,7 +789,7 @@ function deletePassage() {
 }
 
 /* =============== rendering =============== */
-function renderAll() { renderSetup(); renderQueue(); }
+function renderAll() { renderSetup(); renderQueue(); renderLibrary(); }
 function renderSetup() {
   const c = state.cfg;
   $('#customWrap').hidden = c.preset !== 'custom';
@@ -924,6 +962,7 @@ async function saveRecording(st, passage, mime, secs, when) {
     log(`Saved ${st.display}: ${STUDENTS_DIR}/${st.key}/${base}${ext} (${(blob.size / 1024).toFixed(0)} KB, ${meta.durationSec}s)`, 'ok');
     state.session[st.key] = 'recorded';
     state.termDone.add(st.key);
+    scanLibrary();
     setLast({ dir: sDir, jsonDir: dDir, audio: base + ext, json: base + '.json', key: st.key, display: st.display, blob, idx: students().findIndex(s => s.key === st.key) });
     status(`✓ Saved ${st.display} (${meta.durationSec}s).`, 'ok');
     advanceToNextPending();
@@ -959,31 +998,256 @@ async function deleteLast() {
   renderQueue();
 }
 
-/* =============== who already has a recording this term =============== */
-async function refreshTermDone() {
-  const set = new Set();
+/* =============== library: scan the folder =============== */
+const AUDIO_EXT = ['.webm', '.m4a', '.mp3', '.wav', '.ogg', '.aac', '.mp4'];
+const LIB = { students: [], rows: [], scannedAt: null, scanning: false, again: false,
+              view: 'students', year: new Date().getFullYear(), classOnly: true, q: '',
+              open: new Set(), cmp: {}, queue: [], url: null };
+
+async function scanLibrary() {
+  if (LIB.scanning) { LIB.again = true; return; }
+  LIB.scanning = true;
+  const out = [];
   if (state.root) {
-    try {
-      const sd = await state.root.getDirectoryHandle(STUDENTS_DIR);
-      const year = new Date().getFullYear();
-      for await (const [folder, dh] of sd.entries()) {
-        if (dh.kind !== 'directory') continue;
-        const dirs = [dh];
-        try { dirs.push(await dh.getDirectoryHandle(DETAILS_DIR)); } catch { }
-        outer: for (const d of dirs) {
-          for await (const [fn, fh] of d.entries()) {
-            if (fh.kind !== 'file' || !fn.endsWith('.json')) continue;
+    let sd = null;
+    try { sd = await state.root.getDirectoryHandle(STUDENTS_DIR); } catch { /* no recordings yet */ }
+    if (sd) {
+      try {
+        for await (const [folder, dh] of sd.entries()) {
+          if (dh.kind !== 'directory') continue;
+          const audio = [], metaFiles = [];
+          for await (const [fn, fh] of dh.entries()) {
+            if (fh.kind !== 'file') continue;
+            const ext = fn.slice(fn.lastIndexOf('.')).toLowerCase();
+            if (AUDIO_EXT.includes(ext)) audio.push([fn, fh]);
+            else if (ext === '.json') metaFiles.push([fn, fh]);            // v0.1.0 layout
+          }
+          try {
+            const dd = await dh.getDirectoryHandle(DETAILS_DIR);
+            for await (const [fn, fh] of dd.entries()) if (fh.kind === 'file' && fn.endsWith('.json')) metaFiles.push([fn, fh]);
+          } catch { }
+          const byAudio = new Map(), byBase = new Map();
+          for (const [fn, fh] of metaFiles) {
             try {
               const m = JSON.parse(await (await fh.getFile()).text());
-              if (m.year === year && m.term === state.cfg.term) { set.add(folder); break outer; }
+              if (m.audioFile) byAudio.set(m.audioFile, m);
+              byBase.set(fn.slice(0, -5), m);
             } catch { }
           }
+          const recs = [];
+          for (const [fn, fh] of audio) {
+            const base = fn.slice(0, fn.lastIndexOf('.'));
+            const meta = byAudio.get(fn) || byBase.get(base) || null;
+            let when = meta && meta.recordedAt ? new Date(meta.recordedAt) : null;
+            if (!when || isNaN(when)) { try { when = new Date((await fh.getFile()).lastModified); } catch { when = new Date(0); } }
+            recs.push({
+              audio: fn, handle: fh, meta, when,
+              year: meta && meta.year ? meta.year : when.getFullYear(),
+              term: meta && meta.term ? meta.term : null,
+              week: meta && meta.week ? meta.week : null,
+              passageId: meta && meta.passage ? meta.passage.id : '',
+              level: meta && meta.passage ? (meta.passage.level || '') : '',
+              durationSec: meta && meta.durationSec ? meta.durationSec : null,
+            });
+          }
+          recs.sort((a, b) => a.when - b.when);
+          out.push({ folder, recs });
         }
-      }
-    } catch { /* no Students folder yet */ }
+      } catch (e) { log('Library scan problem: ' + e.message, 'err'); }
+    }
   }
-  state.termDone = set;
-  renderQueue();
+  out.sort((a, b) => a.folder.localeCompare(b.folder));
+  LIB.students = out; LIB.scannedAt = new Date();
+  // "✓ this term" badges on the Record screen
+  const y = new Date().getFullYear();
+  state.termDone = new Set(out.filter(s => s.recs.some(r => r.year === y && r.term === state.cfg.term)).map(s => s.folder));
+  LIB.scanning = false;
+  renderQueue(); renderLibrary();
+  if (LIB.again) { LIB.again = false; scanLibrary(); }
+}
+async function refreshTermDone() { await scanLibrary(); }
+
+/* =============== library: rendering =============== */
+const fmtDur = s => s == null ? '' : `${Math.floor(s / 60)}:${pad(Math.round(s % 60))}`;
+function recLabel(r) {
+  const bits = [r.when.toLocaleDateString('en-AU')];
+  if (r.term) bits.push(`T${r.term}${r.week ? ' W' + r.week : ''}`);
+  if (r.passageId) bits.push(r.passageId + (r.level ? ` (${r.level})` : ''));
+  if (r.durationSec != null) bits.push(fmtDur(r.durationSec));
+  return bits.join(' · ');
+}
+function libRows() {
+  const byFolder = new Map(LIB.students.map(s => [s.folder.toLowerCase(), s]));
+  const list = students();
+  const classOnly = LIB.classOnly && list.length > 0;
+  const rows = [], used = new Set();
+  for (const st of list) {
+    const f = byFolder.get(st.key.toLowerCase());
+    if (f) used.add(f.folder.toLowerCase());
+    rows.push({ name: st.display, folder: st.key, recs: f ? f.recs : [], inClass: true });
+  }
+  if (!classOnly) {
+    if (!list.length) rows.length = 0;
+    for (const s of LIB.students) if (!used.has(s.folder.toLowerCase())) rows.push({ name: s.folder, folder: s.folder, recs: s.recs, inClass: false });
+  }
+  const q = LIB.q.trim().toLowerCase();
+  return q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
+}
+function renderLibrary() {
+  const body = $('#libBody'); if (!body) return;
+  $('#tabStudents').setAttribute('aria-selected', LIB.view === 'students');
+  $('#tabGrid').setAttribute('aria-selected', LIB.view === 'grid');
+  $('#libYearWrap').hidden = LIB.view !== 'grid';
+  $('#btnLibScan').disabled = !state.root;
+  // years available
+  const years = new Set([new Date().getFullYear()]);
+  LIB.students.forEach(s => s.recs.forEach(r => years.add(r.year)));
+  $('#libYear').innerHTML = [...years].sort((a, b) => b - a).map(y => `<option${y === LIB.year ? ' selected' : ''}>${y}</option>`).join('');
+  const total = LIB.students.reduce((n, s) => n + s.recs.length, 0);
+  $('#libInfo').textContent = state.root && LIB.scannedAt ? `${total} recording${total === 1 ? '' : 's'} · ${LIB.students.length} student folder${LIB.students.length === 1 ? '' : 's'}` : '';
+  if (!state.root) { body.innerHTML = '<p class="muted">Connect a folder to see recordings.</p>'; return; }
+  LIB.rows = libRows();
+  if (!LIB.rows.length) { body.innerHTML = `<p class="muted">${LIB.q ? 'No students match your search.' : 'No students yet. Add a class list in Setup, or untick "This class only".'}</p>`; return; }
+  body.innerHTML = LIB.view === 'grid' ? renderGrid() : renderByStudent();
+}
+function renderByStudent() {
+  const html = LIB.rows.map((r, ri) => {
+    const n = r.recs.length;
+    const terms = [...new Set(r.recs.filter(x => x.term).map(x => `${x.year} T${x.term}`))];
+    const chips = terms.slice(-4).map(t => `<span class="badge term">${esc(t)}</span>`).join(' ');
+    const extra = r.inClass ? '' : ' <span class="badge">not in class list</span>';
+    let inner;
+    if (!n) inner = '<p class="muted">No recordings yet.</p>';
+    else {
+      let cmp = '';
+      if (n >= 2) {
+        const c = LIB.cmp[r.folder] || { a: 0, b: n - 1 };
+        const a = Math.min(c.a, n - 1), b = Math.min(c.b, n - 1);
+        const opts = sel => r.recs.map((x, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${esc(recLabel(x))}</option>`).join('');
+        cmp = `<div class="compare">
+            <strong>Then vs now</strong>
+            <div class="row">
+              <select data-a="${ri}" aria-label="First recording">${opts(a)}</select>
+              <span>then</span>
+              <select data-b="${ri}" aria-label="Second recording">${opts(b)}</select>
+              <button class="primary small" data-cmpplay="${ri}">▶ Play both</button>
+            </div>
+            <div class="muted" data-cmpnote="${ri}">${cmpNote(r, a, b)}</div>
+          </div>`;
+      }
+      const rowsHtml = r.recs.map((x, i) => `<tr>
+          <td><button class="small" data-play="${ri}:${i}" aria-label="Play ${esc(x.audio)}">▶</button></td>
+          <td>${esc(x.when.toLocaleDateString('en-AU'))}</td>
+          <td>${x.term ? `T${x.term}${x.week ? ' W' + x.week : ''}` : '<span class="muted">–</span>'}</td>
+          <td>${esc(x.passageId) || '<span class="muted">–</span>'}${x.level ? ` <span class="muted">${esc(x.level)}</span>` : ''}</td>
+          <td>${fmtDur(x.durationSec)}</td>
+          <td class="mono muted">${esc(x.audio)}${x.meta ? '' : ' <span class="warn">(no details file)</span>'}</td>
+        </tr>`).join('');
+      inner = cmp + `<table class="recs"><thead><tr><th></th><th>Date</th><th>Term</th><th>Passage</th><th>Length</th><th>File</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+    }
+    return `<details class="libstudent" data-folder="${esc(r.folder)}"${LIB.open.has(r.folder) ? ' open' : ''}>
+        <summary><span><strong>${esc(r.name)}</strong>${extra}</span><span class="muted">${n ? `${n} recording${n === 1 ? '' : 's'}` : 'none yet'} ${chips}</span></summary>
+        ${inner}
+      </details>`;
+  }).join('');
+  return html;
+}
+function cmpNote(r, a, b) {
+  const A = r.recs[a], B = r.recs[b];
+  if (!A || !B) return '';
+  if (a === b) return 'Pick two different recordings to compare.';
+  const gap = Math.round(Math.abs(B.when - A.when) / 864e5);
+  const span = gap >= 60 ? `${Math.round(gap / 30)} months apart` : gap >= 14 ? `${Math.round(gap / 7)} weeks apart` : `${gap} day${gap === 1 ? '' : 's'} apart`;
+  if (A.passageId && B.passageId && A.passageId === B.passageId) return `✓ Same passage (${esc(A.passageId)}), ${span}. A fair comparison.`;
+  if (A.passageId || B.passageId) return `⚠ Different passages (${esc(A.passageId || 'none')} vs ${esc(B.passageId || 'none')}), ${span}. Differences may be due to the text, not just the reader.`;
+  return `${span}.`;
+}
+function renderGrid() {
+  const y = LIB.year, thisYear = new Date().getFullYear();
+  const cur = y === thisYear ? state.cfg.term : null;
+  const counts = [0, 0, 0, 0];
+  const rowsHtml = LIB.rows.map((r, ri) => {
+    const cells = [1, 2, 3, 4].map(t => {
+      const inTerm = r.recs.filter(x => x.year === y && x.term === t);
+      const cls = t === cur ? ' class="curterm"' : '';
+      if (!inTerm.length) return `<td${cls}><span class="muted">—</span></td>`;
+      counts[t - 1]++;
+      const latest = inTerm[inTerm.length - 1];
+      const i = r.recs.indexOf(latest);
+      const label = (inTerm.length > 1 ? inTerm.length + '× ' : '') + (latest.passageId || '✓');
+      return `<td${cls}><button class="small cellplay" data-play="${ri}:${i}" title="${esc(recLabel(latest))}">▶ ${esc(label)}</button></td>`;
+    }).join('');
+    return `<tr><th scope="row">${esc(r.name)}${r.inClass ? '' : ' <span class="badge">not in class</span>'}</th>${cells}</tr>`;
+  }).join('');
+  const n = LIB.rows.length;
+  const head = [1, 2, 3, 4].map(t => `<th scope="col"${t === cur ? ' class="curterm"' : ''}>Term ${t}${t === cur ? ' <span class="muted">(now)</span>' : ''}</th>`).join('');
+  const foot = counts.map((c, i) => `<td${i + 1 === cur ? ' class="curterm"' : ''}><strong>${c}</strong> / ${n}</td>`).join('');
+  let missing = '';
+  if (cur) {
+    const miss = LIB.rows.filter(r => !r.recs.some(x => x.year === y && x.term === cur)).map(r => r.name);
+    missing = miss.length
+      ? `<p><strong>Still to record in Term ${cur}:</strong> ${esc(miss.join(', '))}</p>`
+      : `<p class="ok">Everyone has a Term ${cur} recording.</p>`;
+  }
+  return `${missing}<div class="gridwrap"><table class="termgrid"><thead><tr><th scope="col">Student</th>${head}</tr></thead>
+    <tbody>${rowsHtml}</tbody><tfoot><tr><th scope="row">Recorded</th>${foot}</tr></tfoot></table></div>
+    <p class="muted">Click a cell to play that term's latest recording. Uses the term saved with each recording.</p>`;
+}
+
+/* =============== library: playback =============== */
+async function libPlay(ri, i, queue = []) {
+  const r = LIB.rows[ri], x = r && r.recs[i];
+  if (!x) return;
+  try {
+    const f = await x.handle.getFile();
+    if (LIB.url) URL.revokeObjectURL(LIB.url);
+    LIB.url = URL.createObjectURL(f);
+    const p = $('#libPlayer');
+    p.src = LIB.url;
+    LIB.queue = queue;
+    $('#libNow').textContent = `${r.name}: ${recLabel(x)}${queue.length ? '  (then the next one)' : ''}`;
+    await p.play();
+  } catch (e) {
+    log('Could not play ' + x.audio + ': ' + e.message, 'err');
+    $('#libNow').textContent = 'Could not play that file. It may still be downloading from OneDrive; try again in a moment.';
+  }
+}
+function bindLibrary() {
+  $('#tabStudents').onclick = () => { LIB.view = 'students'; renderLibrary(); };
+  $('#tabGrid').onclick = () => { LIB.view = 'grid'; renderLibrary(); };
+  $('#libClassOnly').onchange = e => { LIB.classOnly = e.target.checked; renderLibrary(); };
+  $('#libSearch').oninput = e => { LIB.q = e.target.value; renderLibrary(); };
+  $('#libYear').onchange = e => { LIB.year = +e.target.value; renderLibrary(); };
+  $('#btnLibScan').onclick = () => scanLibrary();
+  $('#libPlayer').addEventListener('ended', () => {
+    const next = LIB.queue.shift();
+    if (next) libPlay(next[0], next[1], LIB.queue);
+  });
+  const body = $('#libBody');
+  body.addEventListener('toggle', e => {
+    const d = e.target.closest && e.target.closest('details.libstudent'); if (!d) return;
+    if (d.open) LIB.open.add(d.dataset.folder); else LIB.open.delete(d.dataset.folder);
+  }, true);
+  body.addEventListener('click', e => {
+    const p = e.target.closest('[data-play]');
+    if (p) { const [ri, i] = p.dataset.play.split(':').map(Number); libPlay(ri, i); return; }
+    const c = e.target.closest('[data-cmpplay]');
+    if (c) {
+      const ri = +c.dataset.cmpplay, r = LIB.rows[ri];
+      const cfg = LIB.cmp[r.folder] || { a: 0, b: r.recs.length - 1 };
+      libPlay(ri, cfg.a, [[ri, cfg.b]]);
+    }
+  });
+  body.addEventListener('change', e => {
+    const t = e.target;
+    const ri = t.dataset.a ?? t.dataset.b; if (ri === undefined) return;
+    const r = LIB.rows[+ri];
+    const cfg = LIB.cmp[r.folder] || { a: 0, b: r.recs.length - 1 };
+    if (t.dataset.a !== undefined) cfg.a = +t.value; else cfg.b = +t.value;
+    LIB.cmp[r.folder] = cfg;
+    const note = body.querySelector(`[data-cmpnote="${ri}"]`);
+    if (note) note.innerHTML = cmpNote(r, cfg.a, cfg.b);
+  });
 }
 
 /* =============== diagnostics =============== */
@@ -1040,6 +1304,7 @@ function init() {
   $('#verHeader').textContent = 'v' + APP_VERSION;
   $('#verFooter').textContent = 'Version ' + APP_VERSION;
   bindSetup();
+  bindLibrary();
   checks();
 
   $('#btnProve').onclick = prove;
