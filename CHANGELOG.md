@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 (2026-11-13): full-width layout, waveform player, recordings per term
+- **New full-width layout** with a sidebar: Record, Recording history, Term overview, Setup, and Folder & privacy. Each part has its own colour (red for recording, indigo for listening, teal for the term overview, amber for setup, green for privacy), used in its heading, its sidebar item and its accents. The current folder is shown at the bottom of the sidebar with a green dot when connected.
+- Opens on **Folder & privacy** until a folder is connected, then on **Record**. After first choosing a folder, it goes to Setup if there's no class list yet.
+- **Waveform player.** Playing a recording opens a waveform under it with a playhead. Click or drag anywhere on the waveform to jump there; with the waveform selected, ← and → skip 2 s (Shift for 10 s), and Home/End jump to the start or end.
+- **Play/pause and stop on every recording.** The ▶ on the playing recording becomes ❚❚ (pause). There's also a Stop button (back to the start) on the recording and in the player bar at the top, which shows the time and what's playing.
+- **Recordings per term** in Term overview (− / + or type 1–8). Each term gets that many columns; extra recordings show as +N. "Still to record" now counts, e.g. "Noah Tran (1/2)". The setting is saved in `config.json`.
+- Term overview cells show the date and passage in the passage's colour.
+- Keyboard shortcuts now depend on the page: Space records only on the Record page, and plays/pauses on Recording history. Other pages ignore it.
+
 ## 0.3.0 (2026-11-12): MP3 and full recording history
 - **MP3 by default.** Recordings are converted to MP3 (mono, 64 kbps, about 0.5 MB a minute) in the browser by the built-in LAME encoder, so nothing is uploaded. WebM is still available in Setup → Audio format.
 - **Details inside the MP3.** Each MP3 carries the student, title, date, term/week and passage ID, and the passage text is stored as the file's "lyrics". If the conversion ever fails, the recording is saved as WebM instead and the teacher is told.

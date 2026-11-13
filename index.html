@@ -13,30 +13,81 @@
 <meta name="referrer" content="no-referrer">
 <title>Running Record Tracker</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#5d6577; --line:#dde1e8; --accent:#1f6feb; --ok:#1a7f37; --bad:#d1242f; --warn:#9a6700; }
+  :root {
+    --bg:#f5f6fa; --card:#fff; --ink:#1b2130; --muted:#5d6577; --line:#e3e6ee; --soft:#f7f8fb;
+    --ok:#1a7f37; --bad:#d1242f; --warn:#9a6700;
+    /* one colour per part of the app */
+    --rec:#d1242f;  --rec-bg:#fdecee;
+    --hist:#4f46e5; --hist-bg:#eef0ff;
+    --over:#0d8070; --over-bg:#e2f5f1;
+    --set:#b45309;  --set-bg:#fff2df;
+    --safe:#1a7f37; --safe-bg:#e8f6ec;
+  }
   * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
   body { margin:0; font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-  header { padding:14px 24px; background:var(--ink); color:#fff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-  header h1 { margin:0; font-size:21px; }
-  header .ver { color:#c9cfdb; font-size:14px; }
-  header .folder { font-size:14px; color:#c9cfdb; }
-  header .folder strong { color:#fff; }
-  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
-  h2 { margin:0 0 8px; font-size:18px; }
-  h3 { margin:14px 0 6px; font-size:15px; }
+  a { color:var(--hist); }
+
+  /* ---------- app shell ---------- */
+  .app { display:grid; grid-template-columns:264px minmax(0,1fr); min-height:100vh; }
+  .sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:20px; padding:18px 14px; background:#fbfbfd; border-right:1px solid var(--line); }
+  .brand { display:flex; gap:12px; align-items:center; padding:12px 14px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:0 2px 10px rgba(20,30,60,.05); }
+  .logo { width:44px; height:44px; flex:none; border-radius:50%; display:grid; place-items:center; background:var(--hist-bg); color:var(--hist); }
+  .eyebrow-s { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .brandname { font-weight:700; font-size:16px; line-height:1.2; }
+  .nav { display:flex; flex-direction:column; gap:4px; }
+  .nav a { display:flex; gap:12px; align-items:center; padding:11px 14px; border-radius:14px; color:var(--ink); text-decoration:none; font-weight:600; font-size:15.5px; }
+  .nav a:hover { background:#eef0f5; }
+  .nav a svg { flex:none; }
+  .nav a.nav-rec svg { color:var(--rec); } .nav a.nav-hist svg { color:var(--hist); } .nav a.nav-over svg { color:var(--over); }
+  .nav a.nav-set svg { color:var(--set); } .nav a.nav-safe svg { color:var(--safe); }
+  .nav a.active.nav-rec { background:var(--rec-bg); color:var(--rec); }
+  .nav a.active.nav-hist { background:var(--hist-bg); color:var(--hist); }
+  .nav a.active.nav-over { background:var(--over-bg); color:var(--over); }
+  .nav a.active.nav-set { background:var(--set-bg); color:var(--set); }
+  .nav a.active.nav-safe { background:var(--safe-bg); color:var(--safe); }
+  .navhint { font-size:12px; font-weight:500; color:var(--muted); margin-left:auto; }
+  .side-bottom { margin-top:auto; display:flex; flex-direction:column; gap:8px; }
+  .folderchip { text-align:left; display:flex; flex-direction:column; gap:3px; padding:12px 14px; border:1px solid var(--line); border-radius:18px; background:#fff; cursor:pointer; box-shadow:0 2px 10px rgba(20,30,60,.05); }
+  .folderchip:hover { border-color:#c9cedb; }
+  .fc-name { display:flex; align-items:center; gap:8px; font-weight:700; word-break:break-word; }
+  .dot { width:10px; height:10px; flex:none; border-radius:50%; background:#c3c8d4; }
+  .dot.on { background:var(--ok); } .dot.wait { background:#e0a400; }
+  .sidever { font-size:12px; color:var(--muted); padding:0 6px; }
+
+  .content { padding:28px 36px 36px; min-width:0; display:flex; flex-direction:column; gap:22px; }
+  .page { display:flex; flex-direction:column; gap:18px; }
+  .pagehead { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+  .eyebrow { display:flex; align-items:center; gap:8px; font-size:13px; letter-spacing:.2em; text-transform:uppercase; font-weight:700; }
+  .page-rec .eyebrow { color:var(--rec); } .page-hist .eyebrow { color:var(--hist); } .page-over .eyebrow { color:var(--over); }
+  .page-set .eyebrow { color:var(--set); } .page-safe .eyebrow { color:var(--safe); }
+  h1 { margin:6px 0 2px; font-size:30px; line-height:1.15; letter-spacing:-.01em; }
+  .sub { margin:0; color:var(--muted); max-width:70ch; }
+  .pageactions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 20px; box-shadow:0 1px 3px rgba(20,30,60,.04); min-width:0; }
+  .cardtitle { display:flex; align-items:center; gap:10px; margin:0 0 12px; font-size:18px; }
+  .num { width:28px; height:28px; flex:none; border-radius:50%; display:grid; place-items:center; font-size:14px; font-weight:700; }
+  .page-set .num { background:var(--set-bg); color:var(--set); }
+  .page-safe .num { background:var(--safe-bg); color:var(--safe); }
+  footer { color:var(--muted); font-size:13px; padding-top:8px; border-top:1px solid var(--line); }
+
+  /* ---------- controls ---------- */
   .muted { color:var(--muted); font-size:14px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
-  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
-  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  button.small { padding:4px 10px; font-size:14px; }
+  button { font:inherit; padding:8px 14px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; font-weight:500; }
+  button:hover:not(:disabled) { border-color:#c3c8d4; background:#fafbfd; }
+  button.primary { background:var(--hist); color:#fff; border-color:var(--hist); font-weight:600; }
+  button.primary:hover:not(:disabled) { background:#4338ca; }
+  .page-set button.primary { background:var(--set); border-color:var(--set); }
+  .page-safe button.primary { background:var(--safe); border-color:var(--safe); }
+  button.small { padding:5px 11px; font-size:14px; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid #8cb4ff; outline-offset:2px; }
-  label { display:block; font-size:14px; color:var(--muted); margin:8px 0 3px; }
+  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, canvas:focus-visible { outline:3px solid #8cb4ff; outline-offset:2px; }
+  label { display:block; font-size:14px; color:var(--muted); margin:10px 0 4px; font-weight:500; }
   label.inline { display:inline-flex; gap:6px; align-items:center; margin:0 12px 0 0; color:var(--ink); font-size:15px; }
-  input, select, textarea { font:inherit; padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); }
-  input[type=text], input[type=number], input[type=date], select, textarea { width:100%; }
-  input[type=radio], input[type=checkbox] { width:auto; }
+  input, select, textarea { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  input[type=text], input[type=number], input[type=date], input[type=search], select, textarea { width:100%; }
+  input[type=radio], input[type=checkbox] { width:auto; accent-color:var(--hist); }
   textarea { min-height:90px; resize:vertical; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
   .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 12px; }
@@ -44,289 +95,300 @@
   code, .mono { font-family:ui-monospace, Consolas, monospace; font-size:13px; }
   table { width:100%; border-collapse:collapse; font-size:14px; }
   td { padding:4px 6px; border-bottom:1px solid var(--line); }
-  details { border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin-top:10px; }
+  details { border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-top:10px; background:#fff; }
   details > summary { cursor:pointer; font-weight:600; }
-  section > details:first-child { margin-top:0; }
   details ol, details ul { padding-left:20px; }
-  .alert { border-radius:8px; padding:12px 14px; margin-top:10px; }
+  .alert { border-radius:12px; padding:12px 14px; margin-top:10px; }
   .alert.warn { background:#fff8e5; border:1px solid #f0d58c; }
   .alert.ok { background:#eef8f0; border:1px solid #c6e8cf; }
-  .preview { background:#f0f3f8; padding:8px; border-radius:7px; word-break:break-all; margin-top:6px; }
-  /* safety */
-  .promise { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
-  .promise ul { margin:4px 0 0; padding-left:20px; }
-  .box { border-radius:8px; padding:10px 14px; }
-  .box.does { background:#eef8f0; border:1px solid #c6e8cf; }
-  .box.doesnt { background:#fdf0f0; border:1px solid #f2caca; }
-  /* recorder */
-  .recwrap { display:grid; grid-template-columns:3fr 2fr; gap:20px; }
-  .who { font-size:36px; font-weight:700; margin:2px 0; line-height:1.2; }
-  .pos { color:var(--muted); }
-  .passline { margin:6px 0 10px; font-size:15px; }
-  .bigbtn { font-size:22px; padding:16px 28px; border-radius:12px; min-width:230px; font-weight:600; }
-  .bigbtn.go { background:var(--ok); color:#fff; border-color:var(--ok); }
-  .bigbtn.rec { background:var(--bad); color:#fff; border-color:var(--bad); animation:pulse 1.4s infinite; }
-  @keyframes pulse { 50% { box-shadow:0 0 0 8px rgba(209,36,47,.18); } }
-  @media (prefers-reduced-motion: reduce) { .bigbtn.rec { animation:none; } }
-  .timer { font-variant-numeric:tabular-nums; font-size:22px; margin-left:8px; }
-  .meter { height:12px; background:#e7eaf0; border-radius:6px; overflow:hidden; margin:12px 0 4px; }
-  .meter > div { height:100%; width:0; background:var(--ok); transition:width .05s; }
-  ul.queue { list-style:none; margin:0; padding:0; max-height:420px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
-  ul.queue li { padding:7px 10px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; justify-content:space-between; gap:8px; font-size:15px; }
-  ul.queue li:hover { background:#f6f8fb; }
-  ul.queue li.current { background:#e8f0fe; font-weight:600; }
-  .badge { font-size:12px; padding:1px 7px; border-radius:10px; background:#eef0f4; color:var(--muted); white-space:nowrap; font-weight:400; }
+  .preview { background:var(--soft); border:1px solid var(--line); padding:10px; border-radius:10px; word-break:break-all; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:10px; background:#eef0f4; color:var(--muted); white-space:nowrap; font-weight:500; }
   .badge.rec { background:#dafbe1; color:var(--ok); } .badge.abs { background:#fff1e5; color:var(--warn); }
-  .badge.term { background:#ddf4ff; color:#0969da; } .badge.pass { background:#f3eefc; color:#6639ba; }
+  .badge.term { background:var(--over-bg); color:var(--over); } .badge.pass { background:#f3eefc; color:#6639ba; }
   kbd { font-family:inherit; font-size:12px; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; background:#fff; }
-  #lastBox { margin-top:12px; }
-  /* library */
-  .histwrap { display:grid; grid-template-columns:270px 1fr; gap:18px; align-items:start; }
-  .stucol input[type=search] { width:100%; }
-  ul.stulist { list-style:none; padding:0; margin:8px 0 0; max-height:560px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
-  button.stu { width:100%; text-align:left; border:0; border-bottom:1px solid var(--line); border-radius:0; display:flex; flex-direction:column; gap:1px; padding:8px 12px; background:#fff; }
-  button.stu:hover { background:#f6f8fb; }
-  button.stu.active { background:#e8f0fe; box-shadow:inset 4px 0 0 var(--accent); }
-  .stuname { font-weight:600; }
-  .stumeta { font-size:13px; color:var(--muted); }
-  .histhead { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; }
-  .histhead h3 { margin:0; font-size:22px; }
-  .histbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; padding:8px 10px; background:#f6f8fb; border:1px solid var(--line); border-radius:8px; }
-  ol.timeline { list-style:none; padding:0; margin:0; }
-  li.yearhead { font-weight:700; color:var(--muted); margin:14px 0 6px; font-size:14px; border-bottom:1px solid var(--line); padding-bottom:2px; }
-  li.rec { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:6px; background:#fff; flex-wrap:wrap; }
-  li.rec.selected { border-color:#9ec0ff; background:#f5f9ff; }
-  li.rec.playing { border-color:var(--ok); box-shadow:0 0 0 2px rgba(26,127,55,.18); }
-  .playbtn { width:44px; height:44px; border-radius:50%; font-size:16px; padding:0; flex:none; background:var(--ink); color:#fff; border-color:var(--ink); }
-  li.rec.playing .playbtn { background:var(--ok); border-color:var(--ok); }
-  .recmain { flex:1; min-width:150px; }
-  .recdate { font-weight:600; }
   .pchip { font-size:13px; padding:2px 10px; border-radius:12px; white-space:nowrap; font-weight:600; }
   .p0 { background:#e7f0ff; color:#0b4fb3; } .p1 { background:#e6f6ea; color:#1a6b31; } .p2 { background:#fff1e0; color:#8a4b00; }
   .p3 { background:#f3eafd; color:#6235a8; } .p4 { background:#fde8ee; color:#a1214a; } .p5 { background:#e3f5f6; color:#0d6670; }
   .pchip.none { background:#eef0f4; color:var(--muted); font-weight:400; }
-  label.selbox { display:inline-flex; gap:6px; align-items:center; margin:0; color:var(--ink); font-size:14px; white-space:nowrap; cursor:pointer; }
   .linkbtn { border:0; background:none; color:var(--muted); text-decoration:underline; padding:4px; font-size:14px; }
-  .linkbtn.strong { color:var(--ink); font-weight:600; text-decoration:none; font-size:14px; padding:0; }
-  .linkbtn.strong:hover { text-decoration:underline; }
-  .nowwrap { flex:1; min-width:200px; }
+  .linkbtn:hover:not(:disabled) { background:none; color:var(--bad); }
+  .linkbtn.strong { color:var(--ink); font-weight:600; text-decoration:none; font-size:14.5px; padding:0; text-align:left; }
+  .linkbtn.strong:hover { color:var(--hist); text-decoration:underline; }
+
+  /* ---------- record page ---------- */
+  .recgrid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr); gap:18px; align-items:start; }
+  .reccard { border-top:5px solid var(--rec); }
+  .who { font-size:46px; font-weight:800; margin:2px 0 4px; line-height:1.1; letter-spacing:-.01em; }
+  .pos { color:var(--muted); font-weight:600; }
+  .passline { font-size:16px; }
+  .recbar { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:18px 0 6px; }
+  .bigbtn { font-size:22px; padding:16px 30px; border-radius:999px; min-width:250px; font-weight:700; display:inline-flex; gap:12px; align-items:center; justify-content:center; }
+  .bigbtn.go { background:var(--rec); color:#fff; border-color:var(--rec); }
+  .bigbtn.go:hover:not(:disabled) { background:#b31d27; }
+  .bigbtn.rec { background:var(--ink); color:#fff; border-color:var(--ink); animation:pulse 1.4s infinite; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 10px rgba(209,36,47,.18); } }
+  @media (prefers-reduced-motion: reduce) { .bigbtn.rec { animation:none; } }
+  .timer { font-variant-numeric:tabular-nums; font-size:28px; font-weight:700; }
+  .meter { height:12px; background:#eceef3; border-radius:6px; overflow:hidden; margin:10px 0 4px; }
+  .meter > div { height:100%; width:0; background:linear-gradient(90deg, #3fb950, #1a7f37); transition:width .05s; }
+  .recnav { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 6px; }
+  #lastBox { margin-top:14px; padding:12px 14px; border-radius:12px; background:var(--soft); border:1px solid var(--line); }
+  #recStatus { margin-top:10px; font-size:15px; }
+  ul.queue { list-style:none; margin:0; padding:0; max-height:calc(100vh - 260px); min-height:200px; overflow:auto; border:1px solid var(--line); border-radius:12px; }
+  ul.queue li { padding:9px 12px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; justify-content:space-between; gap:8px; font-size:15px; align-items:center; }
+  ul.queue li:hover { background:var(--soft); }
+  ul.queue li.current { background:var(--rec-bg); font-weight:700; box-shadow:inset 4px 0 0 var(--rec); }
+
+  /* ---------- history page ---------- */
+  .nowbar { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 4px 14px rgba(20,30,60,.07); }
+  .np-btn { width:46px; height:46px; border-radius:50%; padding:0; display:grid; place-items:center; background:var(--hist); color:#fff; border-color:var(--hist); }
+  .np-btn:hover:not(:disabled) { background:#4338ca; }
+  .np-btn.ghost { background:#fff; color:var(--ink); border-color:var(--line); }
+  .np-btn.ghost:hover:not(:disabled) { background:var(--soft); }
+  .nowwrap { flex:1; min-width:220px; }
+  #libNow { font-weight:600; }
+  .np-time { font-size:15px; color:var(--muted); font-variant-numeric:tabular-nums; }
   #libMsg:empty { display:none; }
-  @media (max-width:820px) { .histwrap { grid-template-columns:1fr; } ul.stulist { max-height:220px; } }
-  .tabs { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
-  .tabs button { border:0; border-radius:0; }
-  .tabs button[aria-selected=true] { background:var(--ink); color:#fff; }
-  .player { position:sticky; top:0; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:8px 0 12px; box-shadow:0 2px 6px rgba(0,0,0,.04); }
-  .player audio { width:360px; max-width:100%; }
-  details.libstudent { padding:6px 12px; margin-top:6px; }
-  details.libstudent > summary { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-weight:400; }
-  .compare { background:#f6f8fb; border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin:10px 0; }
-  .compare select { width:auto; max-width:100%; }
-  table.recs th, table.termgrid th { text-align:left; font-size:13px; color:var(--muted); font-weight:600; padding:4px 6px; border-bottom:1px solid var(--line); }
-  table.recs td { vertical-align:middle; }
+  .histwrap { display:grid; grid-template-columns:300px minmax(0,1fr); gap:18px; align-items:start; }
+  .stucol { position:sticky; top:96px; }
+  ul.stulist { list-style:none; padding:0; margin:8px 0 0; max-height:calc(100vh - 230px); overflow:auto; border:1px solid var(--line); border-radius:12px; background:#fff; }
+  button.stu { width:100%; text-align:left; border:0; border-bottom:1px solid var(--line); border-radius:0; display:flex; flex-direction:column; gap:1px; padding:9px 14px; background:#fff; }
+  button.stu:hover:not(:disabled) { background:var(--soft); }
+  button.stu.active { background:var(--hist-bg); box-shadow:inset 4px 0 0 var(--hist); }
+  .stuname { font-weight:600; }
+  .stumeta { font-size:13px; color:var(--muted); }
+  .histhead { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; }
+  .histhead h2 { margin:0; font-size:26px; }
+  .histbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:14px 0; padding:10px 12px; background:var(--hist-bg); border-radius:12px; }
+  ol.timeline { list-style:none; padding:0; margin:0; }
+  li.yearhead { font-weight:800; color:var(--hist); margin:18px 0 8px; font-size:14px; letter-spacing:.12em; border-bottom:2px solid var(--hist-bg); padding-bottom:4px; }
+  li.rec { padding:10px 14px; border:1px solid var(--line); border-radius:14px; margin-bottom:8px; background:#fff; }
+  li.rec.selected { border-color:#b9b4ff; background:#fafaff; }
+  li.rec.playing { border-color:var(--hist); box-shadow:0 0 0 3px rgba(79,70,229,.15); }
+  .recrow { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .playbtn { width:46px; height:46px; border-radius:50%; padding:0; flex:none; display:grid; place-items:center; background:var(--hist); color:#fff; border-color:var(--hist); }
+  .playbtn:hover:not(:disabled) { background:#4338ca; }
+  .recmain { flex:1; min-width:160px; }
+  .recdate { font-weight:700; font-size:16px; }
+  label.selbox { display:inline-flex; gap:6px; align-items:center; margin:0; color:var(--ink); font-size:14px; white-space:nowrap; cursor:pointer; font-weight:500; }
+  .wavewrap { margin-top:10px; padding:10px 12px 8px; background:var(--hist-bg); border-radius:12px; }
+  canvas.wave { width:100%; height:84px; display:block; cursor:pointer; touch-action:none; border-radius:8px; background:#fff; }
+  .wavectl { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
+  .wavectl .mono { font-size:14px; font-variant-numeric:tabular-nums; }
+
+  /* ---------- term overview ---------- */
+  .slotctl { display:inline-flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden; }
+  .slotctl button { border:0; border-radius:0; padding:7px 12px; font-weight:700; }
+  .slotctl input { width:52px; border:0; border-left:1px solid var(--line); border-right:1px solid var(--line); border-radius:0; text-align:center; padding:7px 4px; }
+  .ctlgroup { display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); font-weight:500; }
+  .ctlgroup select { width:auto; }
   .gridwrap { overflow:auto; }
-  table.termgrid td, table.termgrid tbody th, table.termgrid tfoot th { padding:5px 8px; border-bottom:1px solid var(--line); color:var(--ink); font-size:14px; }
-  table.termgrid .curterm { background:#f1f6ff; }
-  table.termgrid tfoot th, table.termgrid tfoot td { border-top:2px solid var(--line); }
-  /* diagnostics */
-  #tree { font-family:ui-monospace, Consolas, monospace; font-size:13px; white-space:pre; background:#f0f3f8; border-radius:8px; padding:10px; max-height:300px; overflow:auto; }
+  table.termgrid { border-collapse:separate; border-spacing:0; }
+  table.termgrid th, table.termgrid td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:left; font-size:14px; }
+  table.termgrid thead th { color:var(--muted); font-weight:700; font-size:13px; white-space:nowrap; }
+  table.termgrid thead tr.terms th.tg { background:var(--over-bg); color:var(--over); text-transform:uppercase; letter-spacing:.1em; border-left:3px solid #fff; }
+  table.termgrid thead tr.terms th.tg.curterm { background:var(--over); color:#fff; }
+  table.termgrid td.tstart, table.termgrid th.tstart { border-left:3px solid var(--over-bg); }
+  table.termgrid td.curterm { background:#f2fbf8; }
+  table.termgrid tbody tr:hover td, table.termgrid tbody tr:hover th { background:var(--soft); }
+  table.termgrid tbody th { position:sticky; left:0; background:#fff; z-index:1; min-width:170px; }
+  table.termgrid tfoot td, table.termgrid tfoot th { border-top:2px solid var(--line); font-weight:600; }
+  .cellbtn { padding:3px 10px; border-radius:999px; font-size:13px; font-weight:600; border:1px solid transparent; white-space:nowrap; }
+  .cellbtn:hover:not(:disabled) { border-color:currentColor; }
+  .emptycell { display:inline-block; width:26px; height:6px; border-radius:3px; background:#eceef3; vertical-align:middle; }
+  .more { font-size:12px; color:var(--muted); margin-left:4px; }
+  .misslist { padding:12px 16px; border-radius:12px; background:#fff8e5; border:1px solid #f0d58c; }
+  .misslist.done { background:#eef8f0; border-color:#c6e8cf; }
+
+  /* ---------- setup + folder ---------- */
+  .setgrid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .setgrid .wide { grid-column:1 / -1; }
+  .promise { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px; }
+  .promise ul { margin:4px 0 0; padding-left:20px; }
+  .box { border-radius:12px; padding:12px 16px; }
+  .box.does { background:#eef8f0; border:1px solid #c6e8cf; }
+  .box.doesnt { background:#fdf0f0; border:1px solid #f2caca; }
+  #tree { font-family:ui-monospace, Consolas, monospace; font-size:13px; white-space:pre; background:var(--soft); border-radius:10px; padding:10px; max-height:300px; overflow:auto; }
   #changes div { font-family:ui-monospace, Consolas, monospace; font-size:13px; }
   .add { color:var(--ok); } .chg { color:var(--warn); } .del { color:var(--bad); }
-  #log { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; max-height:240px; overflow:auto; background:#0f141c; color:#d7dde8; border-radius:8px; padding:8px 10px; }
+  #log { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; max-height:240px; overflow:auto; background:#0f141c; color:#d7dde8; border-radius:10px; padding:8px 10px; }
   #log .err { color:#ff8b8b; } #log .warn { color:#f2cc60; } #log .ok { color:#7ee787; }
-  footer { max-width:1100px; margin:0 auto; padding:0 16px 24px; }
-  @media (max-width:820px) { .promise, .grid2, .recwrap { grid-template-columns:1fr; } .grid3 { grid-template-columns:1fr 1fr; } }
+
+  @media (max-width:1100px) { .recgrid, .histwrap { grid-template-columns:1fr; } .stucol { position:static; } ul.stulist { max-height:240px; } ul.queue { max-height:320px; } }
+  @media (max-width:900px) {
+    .app { grid-template-columns:1fr; }
+    .sidebar { position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px; }
+    .nav { flex-direction:row; flex-wrap:wrap; }
+    .side-bottom { margin:0; }
+    .content { padding:18px; }
+    .setgrid, .promise, .grid2 { grid-template-columns:1fr; }
+    .who { font-size:36px; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Running Record Tracker <span class="ver" id="verHeader"></span></h1>
-  <span class="folder">Folder: <strong id="folderNameTop">not connected</strong></span>
-</header>
-
-<main>
-  <!-- ===================== FOLDER + SAFETY ===================== -->
-  <section aria-labelledby="h-folder">
-    <h2 id="h-folder">Recordings folder</h2>
-    <p class="muted">Use a <strong>dedicated folder inside your OneDrive</strong>, for example <code>Reading Samples</code>. You can make one with the <em>New folder</em> button in the window that opens. Don't choose your whole OneDrive.</p>
-    <div class="row">
-      <button class="primary" id="btnChoose">Choose folder…</button>
-      <button id="btnReconnect" hidden>Reconnect</button>
-      <button id="btnForget" disabled>Disconnect</button>
-      <span>Connected: <strong id="folderName">none</strong> <span class="muted" id="permState"></span></span>
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </div>
+      <div><div class="eyebrow-s">Reading samples</div><div class="brandname">Running Record Tracker</div></div>
     </div>
-    <div id="folderAlert"></div>
+    <nav class="nav" aria-label="Main">
+      <a href="#record" data-page="record" class="nav-rec">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>Record</a>
+      <a href="#history" data-page="history" class="nav-hist">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></svg>Recording history</a>
+      <a href="#overview" data-page="overview" class="nav-over">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg>Term overview</a>
+      <a href="#setup" data-page="setup" class="nav-set">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Setup</a>
+      <a href="#folder" data-page="folder" class="nav-safe">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round"/></svg>Folder &amp; privacy</a>
+    </nav>
+    <div class="side-bottom">
+      <button class="folderchip" id="folderChip" type="button">
+        <span class="eyebrow-s">Recordings folder</span>
+        <span class="fc-name"><span class="dot" id="folderDot"></span><span id="folderNameTop">Not connected</span></span>
+      </button>
+      <div class="sidever"><span id="verHeader"></span> · works offline</div>
+    </div>
+  </aside>
 
-    <details id="safety" open>
-      <summary>What this tool does and doesn't do</summary>
-      <div class="promise">
-        <div class="box does">
-          <strong>It does</strong>
-          <ul>
-            <li>Read and write only inside the <em>one folder</em> you choose.</li>
-            <li>Run entirely on this computer, in your browser.</li>
-            <li>Rely on your own OneDrive to back up that folder, as it does for any file you save.</li>
-          </ul>
+  <main class="content">
+    <!-- ===================== RECORD ===================== -->
+    <section class="page page-rec" data-page="record" aria-labelledby="h-rec">
+      <header class="pagehead">
+        <div>
+          <div class="eyebrow"><svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>Record</div>
+          <h1 id="h-rec">Record readings</h1>
+          <p class="sub">Press <strong>Record</strong>, let the student read, then press <strong>Stop</strong>. It saves automatically and the next student comes up.</p>
         </div>
-        <div class="box doesnt">
-          <strong>It doesn't</strong>
-          <ul>
-            <li>See any other folders or files on this computer or in your OneDrive.</li>
-            <li>Send recordings or student details anywhere. The page blocks itself from the internet.</li>
-            <li>Use accounts, sign-ins, tracking, analytics or a server.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="row">
-        <button id="btnProve">Test it: try to send data to the internet</button>
-        <span id="proveResult" class="muted"></span>
-      </div>
-      <details>
-        <summary>How to check this yourself</summary>
-        <ol>
-          <li><strong>Offline test:</strong> once this page has loaded, turn off Wi-Fi. Everything keeps working.</li>
-          <li><strong>Network check (for IT):</strong> press F12, open the <em>Network</em> tab, and use the tool. No requests are made after the page loads.</li>
-          <li><strong>Read the code:</strong> this is one file with no outside libraries. The source is public on GitHub, and the version number at the top matches a GitHub release.</li>
-          <li><strong>See or remove access:</strong> while connected, a folder icon appears in the address bar. Click it, or go to <em>Site settings</em>, to see which folder this site can use or to remove access.</li>
-        </ol>
-      </details>
-    </details>
-  </section>
-
-  <!-- ===================== RECORD ===================== -->
-  <section aria-labelledby="h-rec">
-    <h2 id="h-rec">Record</h2>
-    <div class="recwrap">
-      <div>
-        <div class="pos" id="pos">–</div>
-        <div class="who" id="who">Add a class list in Setup</div>
-        <div class="passline" id="passLine"></div>
-        <div id="perStudentPassWrap" hidden>
-          <label for="studentPassage">Passage for this student (remembered for next time)</label>
-          <select id="studentPassage"></select>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <button class="bigbtn go" id="btnRec" disabled>● Record</button>
-          <span class="timer" id="timer" aria-live="off">0:00</span>
-        </div>
-        <div class="meter" aria-hidden="true"><div id="meterFill"></div></div>
-        <div class="row">
-          <label for="micSelect" style="margin:0">Microphone</label>
-          <select id="micSelect" style="max-width:320px"><option value="">Default microphone</option></select>
-        </div>
-        <div class="row">
-          <button id="btnBack">← Back</button>
-          <button id="btnSkip">Skip →</button>
-          <button id="btnAbsent">Absent</button>
-        </div>
-        <p class="muted">Keys: <kbd>Space</kbd> start/stop · <kbd>→</kbd> skip · <kbd>←</kbd> back · <kbd>A</kbd> absent. Stopping saves the recording and moves to the next student.</p>
-        <div id="lastBox" hidden>
-          <div class="muted">Last saved: <span class="mono" id="lastName"></span></div>
-          <div class="row">
-            <audio id="lastPlayer" controls style="max-width:100%"></audio>
-            <button class="small" id="btnDeleteLast">Delete this recording</button>
+      </header>
+      <div class="recgrid">
+        <div class="card reccard">
+          <div class="pos" id="pos">–</div>
+          <div class="who" id="who">Add a class list in Setup</div>
+          <div class="passline" id="passLine"></div>
+          <div id="perStudentPassWrap" hidden>
+            <label for="studentPassage">Passage for this student (remembered for next time)</label>
+            <select id="studentPassage" style="max-width:420px"></select>
+          </div>
+          <div class="recbar">
+            <button class="bigbtn go" id="btnRec" disabled>● Record</button>
+            <span class="timer" id="timer" aria-live="off">0:00</span>
+          </div>
+          <div class="meter" aria-hidden="true"><div id="meterFill"></div></div>
+          <div class="row" style="margin-top:0">
+            <label for="micSelect" style="margin:0">Microphone</label>
+            <select id="micSelect" style="max-width:340px"><option value="">Default microphone</option></select>
+          </div>
+          <div class="recnav">
+            <button id="btnBack">← Back</button>
+            <button id="btnSkip">Skip →</button>
+            <button id="btnAbsent">Absent</button>
+          </div>
+          <p class="muted" style="margin:4px 0 0">Keys: <kbd>Space</kbd> start/stop · <kbd>→</kbd> skip · <kbd>←</kbd> back · <kbd>A</kbd> absent</p>
+          <div id="recStatus" role="status" class="muted"></div>
+          <div id="lastBox" hidden>
+            <div class="muted">Last saved: <span class="mono" id="lastName"></span></div>
+            <div class="row" style="margin-bottom:0">
+              <audio id="lastPlayer" controls style="max-width:100%"></audio>
+              <button class="small" id="btnDeleteLast">Delete this recording</button>
+            </div>
           </div>
         </div>
-        <div id="recStatus" role="status" class="muted"></div>
+        <div class="card">
+          <h2 class="cardtitle">Class list</h2>
+          <ul class="queue" id="queue" aria-label="Class list"></ul>
+          <p class="muted" style="margin-bottom:0">Click a name to jump to that student. <span class="badge term">✓ this term</span> means they already have a recording this term.</p>
+        </div>
       </div>
-      <div>
-        <ul class="queue" id="queue" aria-label="Class list"></ul>
-        <p class="muted">Click a name to jump to that student. <span class="badge term">✓ this term</span> means a recording already exists for this term.</p>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ===================== LIBRARY ===================== -->
-  <section aria-labelledby="h-lib" id="libSection">
-    <h2 id="h-lib">Library</h2>
-    <div class="row">
-      <div class="tabs" role="tablist" aria-label="Library view">
-        <button role="tab" id="tabStudents" aria-selected="true">Recording history</button>
-        <button role="tab" id="tabGrid" aria-selected="false">Term overview</button>
-      </div>
-      <span id="libYearWrap" hidden><select id="libYear" aria-label="Year" style="width:auto"></select></span>
-      <button class="small" id="btnLibScan" disabled>Rescan folder</button>
-      <button class="small" id="btnConvert" hidden>Convert WebM to MP3</button>
-      <span class="muted" id="libInfo"></span>
-    </div>
-    <div id="libMsg" role="status" class="muted"></div>
-    <div class="player">
-      <audio id="libPlayer" controls></audio>
-      <div class="nowwrap"><div id="libNow">Nothing playing. Press ▶ on a recording.</div><div class="muted" id="libQueueInfo"></div></div>
-      <button class="small" id="btnStopQueue" hidden>■ Stop</button>
-    </div>
-    <div id="libBody">
-      <div id="histView" class="histwrap">
-        <aside class="stucol" aria-label="Students">
-          <input type="search" id="libSearch" placeholder="Find a student…" aria-label="Find a student">
-          <label class="inline" style="margin-top:6px"><input type="checkbox" id="libClassOnly" checked> This class only</label>
-          <ul id="stuList" class="stulist"></ul>
-        </aside>
-        <div id="histPane" class="histpane"><p class="muted">Connect a folder to see recordings.</p></div>
-      </div>
-      <div id="gridView" hidden></div>
-    </div>
-  </section>
-
-  <!-- ===================== SETUP ===================== -->
-  <section aria-labelledby="h-setup">
-    <h2 id="h-setup">Setup</h2>
-    <p class="muted">Saved in <code>config.json</code> in your folder, so another computer using the same folder shares the same setup.</p>
-
-    <details id="setupClass" open>
-      <summary>Class and term</summary>
-      <div class="grid2">
+    <!-- ===================== RECORDING HISTORY ===================== -->
+    <section class="page page-hist" data-page="history" id="libSection" aria-labelledby="h-lib" hidden>
+      <header class="pagehead">
         <div>
+          <div class="eyebrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 12v0M8 8v8M12 5v14M16 9v6M20 12v0"/></svg>Recording history</div>
+          <h1 id="h-lib">Listen back</h1>
+          <p class="sub">Choose a student to see every recording they've had. Play any one, or tick several and play them back to back.</p>
+        </div>
+        <div class="pageactions">
+          <span class="muted" id="libInfo"></span>
+          <button class="small" id="btnConvert" hidden>Convert WebM to MP3</button>
+          <button class="small" id="btnLibScan" disabled>Rescan folder</button>
+        </div>
+      </header>
+      <div id="libMsg" role="status" class="muted"></div>
+      <div class="nowbar" aria-label="Player">
+        <button class="np-btn" id="npPlay" disabled aria-label="Play"></button>
+        <button class="np-btn ghost" id="btnStopQueue" disabled aria-label="Stop"></button>
+        <div class="nowwrap"><div id="libNow">Nothing playing. Press ▶ on any recording below.</div><div class="muted" id="libQueueInfo"></div></div>
+        <span class="np-time" id="npTime"></span>
+        <audio id="libPlayer" preload="auto"></audio>
+      </div>
+      <div id="libBody">
+        <div id="histView" class="histwrap">
+          <aside class="stucol card" aria-label="Students" style="padding:14px">
+            <input type="search" id="libSearch" placeholder="Find a student…" aria-label="Find a student">
+            <label class="inline" style="margin-top:8px"><input type="checkbox" id="libClassOnly" checked> This class only</label>
+            <ul id="stuList" class="stulist"></ul>
+          </aside>
+          <div id="histPane" class="histpane card"><p class="muted">Connect a folder to see recordings.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TERM OVERVIEW ===================== -->
+    <section class="page page-over" data-page="overview" aria-labelledby="h-over" hidden>
+      <header class="pagehead">
+        <div>
+          <div class="eyebrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 11h16M10 5v14"/></svg>Term overview</div>
+          <h1 id="h-over">Who's been recorded</h1>
+          <p class="sub">Each student against each term. Press a recording to listen, or a name to open their full history.</p>
+        </div>
+        <div class="pageactions">
+          <span class="ctlgroup">Year <select id="libYear" aria-label="Year"></select></span>
+          <span class="ctlgroup">Recordings per term
+            <span class="slotctl">
+              <button type="button" id="slotsMinus" aria-label="Fewer recordings per term">−</button>
+              <input type="number" id="slotsPerTerm" min="1" max="8" value="1" aria-label="Recordings per term">
+              <button type="button" id="slotsPlus" aria-label="More recordings per term">+</button>
+            </span>
+          </span>
+        </div>
+      </header>
+      <div class="card"><div id="gridView"><p class="muted">Connect a folder to see recordings.</p></div></div>
+    </section>
+
+    <!-- ===================== SETUP ===================== -->
+    <section class="page page-set" data-page="setup" aria-labelledby="h-setup" hidden>
+      <header class="pagehead">
+        <div>
+          <div class="eyebrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Setup</div>
+          <h1 id="h-setup">Class, passages and files</h1>
+          <p class="sub">Saved in <code>config.json</code> in your recordings folder, so any computer using the same folder gets the same setup.</p>
+        </div>
+      </header>
+      <div class="setgrid">
+        <div class="card" id="setupClass">
+          <h2 class="cardtitle"><span class="num">1</span>Class and term</h2>
           <div class="grid3">
             <div><label for="className">Class</label><input type="text" id="className" placeholder="e.g. 3B"></div>
             <div><label for="term">Term</label><input type="number" id="term" min="1" max="4"></div>
             <div><label for="termStart">Term start date</label><input type="date" id="termStart"></div>
           </div>
-          <p class="muted">The term start date is used to work out week numbers (e.g. T4W5). Leave blank to skip weeks.</p>
-        </div>
-        <div>
+          <p class="muted">The term start date is used to work out week numbers. Leave it blank to skip weeks.</p>
           <label for="students">Class list, one per line ("First Surname" or "Surname, First")</label>
-          <textarea id="students" style="min-height:160px" placeholder="Mia Nguyen&#10;Jack O'Brien&#10;Smith, Ava"></textarea>
+          <textarea id="students" style="min-height:200px" placeholder="Mia Nguyen&#10;Jack O'Brien&#10;Smith, Ava"></textarea>
           <p class="muted" id="studentCount"></p>
         </div>
-      </div>
-    </details>
 
-    <details id="setupPass">
-      <summary>Passages</summary>
-      <fieldset style="border:0;padding:0;margin:8px 0">
-        <legend class="muted" style="padding:0">Who reads which passage?</legend>
-        <label class="inline"><input type="radio" name="passMode" value="same"> Everyone reads the same passage <span class="muted">(typical for fluency checks)</span></label><br>
-        <label class="inline"><input type="radio" name="passMode" value="perStudent"> Each student can have their own <span class="muted">(typical for running records and levelled texts)</span></label>
-      </fieldset>
-      <div class="grid2">
-        <div>
-          <label for="defaultPassage">Default passage for this session</label>
-          <select id="defaultPassage"></select>
-          <p class="muted" id="perStudentNote" hidden>In "own passage" mode, students without a passage of their own use this default. Set a child's passage on the Record screen. It's remembered.
-            <button class="small" id="btnClearStudentPass">Reset everyone to default</button></p>
-        </div>
-        <div>
-          <label for="editPick">Passage library</label>
-          <select id="editPick"></select>
-          <div class="grid2">
-            <div><label for="pId">Passage ID (short, used in filenames)</label><input type="text" id="pId" placeholder="e.g. ANCHOR-Y3"></div>
-            <div><label for="pLevel">Level (optional)</label><input type="text" id="pLevel" placeholder="e.g. PM 18"></div>
-          </div>
-          <label for="pText">Passage text (optional, used later for word counts and marking)</label>
-          <textarea id="pText"></textarea>
-          <div class="row">
-            <button class="primary small" id="btnSavePass">Save passage</button>
-            <button class="small" id="btnDelPass">Delete</button>
-            <span class="muted" id="pWords"></span>
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <details id="setupNaming">
-      <summary>Audio format and file naming</summary>
-      <div class="grid2">
-        <div>
+        <div class="card" id="setupNaming">
+          <h2 class="cardtitle"><span class="num">2</span>Audio and file names</h2>
           <label for="audioFormat">Save recordings as</label>
           <select id="audioFormat">
             <option value="mp3">MP3 (recommended): plays anywhere; student, date and passage text are stored inside the file</option>
@@ -339,48 +401,131 @@
             <input type="text" id="customFmt" class="mono">
             <p class="muted">Tokens: <code>{name} {termweek} {date} {audate} {year} {term} {week} {week2} {tw} {first} {surname} {class} {passage}</code></p>
           </div>
-        </div>
-        <div>
           <label>Example</label>
           <div class="preview mono" id="namePreview"></div>
           <p class="muted" id="presetNote"></p>
         </div>
-      </div>
-    </details>
-  </section>
 
-  <!-- ===================== DIAGNOSTICS ===================== -->
-  <section aria-labelledby="h-diag">
-    <h2 id="h-diag">Diagnostics</h2>
-    <p class="muted">You can ignore this unless something isn't working.</p>
-    <details><summary>Browser checks</summary><table id="caps"></table></details>
-    <details>
-      <summary>Write tests</summary>
-      <div class="row">
-        <button id="btnText" disabled>Write small text file</button>
-        <button id="btnBig" disabled>Write 1 MB file</button>
-        <button id="btnClean" disabled>Delete test files</button>
+        <div class="card wide" id="setupPass">
+          <h2 class="cardtitle"><span class="num">3</span>Passages</h2>
+          <fieldset style="border:0;padding:0;margin:0 0 8px">
+            <legend class="muted" style="padding:0">Who reads which passage?</legend>
+            <label class="inline"><input type="radio" name="passMode" value="same"> Everyone reads the same passage <span class="muted">(typical for fluency checks)</span></label><br>
+            <label class="inline"><input type="radio" name="passMode" value="perStudent"> Each student can have their own <span class="muted">(typical for running records and levelled texts)</span></label>
+          </fieldset>
+          <div class="grid2">
+            <div>
+              <label for="defaultPassage">Default passage</label>
+              <select id="defaultPassage"></select>
+              <p class="muted" id="perStudentNote" hidden>Students without a passage of their own use this default. Set a child's passage on the Record page; it's remembered.
+                <button class="small" id="btnClearStudentPass">Reset everyone to default</button></p>
+            </div>
+            <div>
+              <label for="editPick">Passage library</label>
+              <select id="editPick"></select>
+              <div class="grid2">
+                <div><label for="pId">Passage ID (short, used in file names)</label><input type="text" id="pId" placeholder="e.g. P1"></div>
+                <div><label for="pLevel">Level (optional)</label><input type="text" id="pLevel" placeholder="e.g. PM 18"></div>
+              </div>
+              <label for="pText">Passage text (optional; saved inside each MP3)</label>
+              <textarea id="pText"></textarea>
+              <div class="row">
+                <button class="primary small" id="btnSavePass">Save passage</button>
+                <button class="small" id="btnDelPass">Delete</button>
+                <span class="muted" id="pWords"></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <p class="muted">Test files go in a <code>_sync-test</code> subfolder.</p>
-    </details>
-    <details>
-      <summary>Watch the folder</summary>
-      <div class="row">
-        <button id="btnScan" disabled>Rescan now</button>
-        <label class="inline muted"><input type="checkbox" id="auto"> Auto-rescan every 10 s</label>
-        <span class="muted" id="scanInfo"></span>
-      </div>
-      <div id="changes" class="muted">Changes since the last scan appear here.</div>
-      <h3>Folder contents</h3>
-      <div id="tree">(not connected)</div>
-    </details>
-    <details><summary>Log</summary><div id="log"></div></details>
-  </section>
-</main>
+    </section>
 
-<footer class="muted">
-  <span id="verFooter"></span> · Source code: <a href="https://github.com/evandevon/running-record-tracker" rel="noreferrer">github.com/evandevon/running-record-tracker</a> · MP3 encoding by <a href="https://lame.sourceforge.io" rel="noreferrer">LAME</a> (via lamejs, LGPL) · Not an official NSW Department of Education product.
-</footer>
+    <!-- ===================== FOLDER & PRIVACY ===================== -->
+    <section class="page page-safe" data-page="folder" aria-labelledby="h-folder" hidden>
+      <header class="pagehead">
+        <div>
+          <div class="eyebrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg>Folder &amp; privacy</div>
+          <h1 id="h-folder">Recordings folder</h1>
+          <p class="sub">Choose a <strong>dedicated folder inside your OneDrive</strong>, e.g. <code>Reading Samples</code>. You can make one with the <em>New folder</em> button in the window that opens. Don't choose your whole OneDrive.</p>
+        </div>
+      </header>
+      <div class="card">
+        <h2 class="cardtitle"><span class="num">1</span>Connect</h2>
+        <div class="row">
+          <button class="primary" id="btnChoose">Choose folder…</button>
+          <button id="btnReconnect" hidden>Reconnect</button>
+          <button id="btnForget" disabled>Disconnect</button>
+          <span>Connected: <strong id="folderName">none</strong> <span class="muted" id="permState"></span></span>
+        </div>
+        <div id="folderAlert"></div>
+      </div>
+      <div class="card" id="safety">
+        <h2 class="cardtitle"><span class="num">2</span>What this tool does and doesn't do</h2>
+        <div class="promise">
+          <div class="box does">
+            <strong>It does</strong>
+            <ul>
+              <li>Read and write only inside the <em>one folder</em> you choose.</li>
+              <li>Run entirely on this computer, in your browser.</li>
+              <li>Rely on your own OneDrive to back up that folder, as it does for any file you save.</li>
+            </ul>
+          </div>
+          <div class="box doesnt">
+            <strong>It doesn't</strong>
+            <ul>
+              <li>See any other folders or files on this computer or in your OneDrive.</li>
+              <li>Send recordings or student details anywhere. The page blocks itself from the internet.</li>
+              <li>Use accounts, sign-ins, tracking, analytics or a server.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnProve">Test it: try to send data to the internet</button>
+          <span id="proveResult" class="muted"></span>
+        </div>
+        <details>
+          <summary>How to check this yourself</summary>
+          <ol>
+            <li><strong>Offline test:</strong> once this page has loaded, turn off Wi-Fi. Everything keeps working.</li>
+            <li><strong>Network check (for IT):</strong> press F12, open the <em>Network</em> tab, and use the tool. No requests are made after the page loads.</li>
+            <li><strong>Read the code:</strong> the source is public on GitHub, and the version number matches a GitHub release. The only outside code is the LAME MP3 encoder, embedded unmodified.</li>
+            <li><strong>See or remove access:</strong> while connected, a folder icon appears in the address bar. Click it, or go to <em>Site settings</em>, to see which folder this site can use or to remove access.</li>
+          </ol>
+        </details>
+      </div>
+      <div class="card">
+        <h2 class="cardtitle"><span class="num">3</span>Diagnostics</h2>
+        <p class="muted" style="margin-top:0">You can ignore this unless something isn't working.</p>
+        <details><summary>Browser checks</summary><table id="caps"></table></details>
+        <details>
+          <summary>Write tests</summary>
+          <div class="row">
+            <button id="btnText" disabled>Write small text file</button>
+            <button id="btnBig" disabled>Write 1 MB file</button>
+            <button id="btnClean" disabled>Delete test files</button>
+          </div>
+          <p class="muted">Test files go in a <code>_sync-test</code> subfolder.</p>
+        </details>
+        <details>
+          <summary>Watch the folder</summary>
+          <div class="row">
+            <button id="btnScan" disabled>Rescan now</button>
+            <label class="inline muted"><input type="checkbox" id="auto"> Auto-rescan every 10 s</label>
+            <span class="muted" id="scanInfo"></span>
+          </div>
+          <div id="changes" class="muted">Changes since the last scan appear here.</div>
+          <h3 style="font-size:15px">Folder contents</h3>
+          <div id="tree">(not connected)</div>
+        </details>
+        <details><summary>Log</summary><div id="log"></div></details>
+      </div>
+    </section>
+
+    <footer>
+      <span id="verFooter"></span> · Source code: <a href="https://github.com/evandevon/running-record-tracker" rel="noreferrer">github.com/evandevon/running-record-tracker</a> · MP3 encoding by <a href="https://lame.sourceforge.io" rel="noreferrer">LAME</a> (via lamejs, LGPL) · Not an official NSW Department of Education product.
+    </footer>
+  </main>
+</div>
 
 <script>
 /* ---------------------------------------------------------------------------
@@ -700,7 +845,7 @@ a.length>D&&(D=a.length,p=0|1.25*D+7200,r=new Int8Array(p));a=u.lame_encode_buff
 </script>
 <script>
 "use strict";
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.4.0';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const TEST_DIR = '_sync-test';
@@ -721,7 +866,7 @@ const DEFAULT_CFG = {
   schema: 2, className: '', term: 1, termStart: '', students: '', studentIds: {},
   preset: 'simple', customFmt: '{name} - {date}',
   passageMode: 'same', defaultPassage: '', passages: [], studentPassages: {},
-  audioFormat: 'mp3',
+  audioFormat: 'mp3', slotsPerTerm: 1,
 };
 
 const state = {
@@ -875,6 +1020,7 @@ async function restore() {
     state.pending = h;
     const b = $('#btnReconnect'); b.hidden = false; b.textContent = `Reconnect to "${h.name}"`;
     $('#permState').textContent = '(click Reconnect to continue)';
+    setFolderName('none', true);
   }
 }
 async function reconnect() {
@@ -892,10 +1038,15 @@ async function disconnect() {
   setFolderName('none'); $('#permState').textContent = ''; $('#tree').textContent = '(not connected)';
   $('#folderAlert').innerHTML = '<div class="alert ok">Disconnected. To remove the browser permission completely, use the folder icon in the address bar or <em>Site settings</em>.</div>';
   $('#safety').open = true;
-  setEnabled(false); renderAll();
+  setEnabled(false); closePlayer(); renderAll();
+  go('folder');
   log('Disconnected');
 }
-function setFolderName(n) { $('#folderName').textContent = n; $('#folderNameTop').textContent = n === 'none' ? 'not connected' : n; }
+function setFolderName(n, waiting = false) {
+  $('#folderName').textContent = n;
+  $('#folderNameTop').textContent = n === 'none' ? (waiting ? 'Click to reconnect' : 'Not connected') : n;
+  $('#folderDot').className = 'dot' + (n !== 'none' ? ' on' : waiting ? ' wait' : '');
+}
 async function connect(h, how) {
   state.root = h;
   setFolderName(h.name);
@@ -909,6 +1060,7 @@ async function connect(h, how) {
   await refreshTermDone();
   state.lastSnap = null;
   await scan();
+  if (how === 'just chosen') go(students().length ? 'record' : 'setup');
 }
 function setEnabled(on) {
   ['#btnText', '#btnBig', '#btnClean', '#btnScan', '#btnForget', '#btnRec'].forEach(s => $(s).disabled = !on);
@@ -1272,8 +1424,8 @@ async function toggleRec() {
   if (isRecording()) { state.recorder.stop(); return; }
   if (!state.root) { status('Choose a recordings folder first.', 'warn'); return; }
   const st = students()[state.idx];
-  if (!st) { status('Add a class list in Setup first.', 'warn'); $('#setupClass').open = true; return; }
-  if (isDuplicate(st)) { status(`There are two students called ${st.display}. Add an initial to one of them in Setup (e.g. "${st.display} J") so each gets their own folder.`, 'bad'); $('#setupClass').open = true; return; }
+  if (!st) { status('Add a class list in Setup first.', 'warn'); go('setup'); return; }
+  if (isDuplicate(st)) { status(`There are two students called ${st.display}. Add an initial to one of them in Setup (e.g. "${st.display} J") so each gets their own folder.`, 'bad'); go('setup'); return; }
   try { await ensureMic(); }
   catch (e) { status('Microphone blocked or unavailable: ' + e.message, 'bad'); log('Mic error: ' + e.name + ' – ' + e.message, 'err'); return; }
   const mime = pickMime();
@@ -1436,8 +1588,10 @@ async function deleteLast() {
 /* =============== library: scan the folder =============== */
 const AUDIO_EXT = ['.mp3', '.webm', '.m4a', '.wav', '.ogg', '.aac', '.mp4'];
 const LIB = { students: [], rows: [], scannedAt: null, scanning: false, again: false,
-              view: 'history', year: new Date().getFullYear(), classOnly: true, q: '',
-              selected: null, sel: new Set(), playing: null, queue: [], qTotal: 0, url: null, converting: false };
+              year: new Date().getFullYear(), classOnly: true, q: '',
+              selected: null, sel: new Set(), playing: null, queue: [], qTotal: 0, url: null, converting: false,
+              raf: 0, scrubbing: false };
+const WAVES = new Map();   // "folder/file" -> { peaks, duration } (waveform cache)
 
 async function scanLibrary() {
   if (LIB.scanning) { LIB.again = true; return; }
@@ -1503,9 +1657,14 @@ async function scanLibrary() {
 async function refreshTermDone() { await scanLibrary(); }
 
 /* =============== library: helpers =============== */
-const fmtDur = s => s == null ? '' : `${Math.floor(s / 60)}:${pad(Math.round(s % 60) === 60 ? 59 : Math.round(s % 60))}`;
+const fmtDur = s => s == null ? '' : `${Math.floor(s / 60)}:${pad(Math.min(59, Math.round(s % 60)))}`;
+const fmtTime = s => (s == null || !isFinite(s)) ? '0:00' : `${Math.floor(s / 60)}:${pad(Math.floor(s % 60))}`;
 const longDate = d => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+const shortDate = d => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 const termLabel = x => x.term ? `Term ${x.term}${x.week ? ' · Week ' + x.week : ''}` : 'Term not recorded';
+const ICON_PLAY = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
+const ICON_PAUSE = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.5" width="4.5" height="15" rx="1" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="1" fill="currentColor"/></svg>';
+const ICON_STOP = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>';
 function pColor(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 'p' + (h % 6); }
 function libMsg(text, cls = 'muted') { const m = $('#libMsg'); m.className = cls; m.textContent = text; }
 function libRows() {
@@ -1526,15 +1685,12 @@ function libRows() {
   return q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
 }
 const currentRow = () => LIB.rows.find(r => r.folder === LIB.selected) || null;
+const isActive = (folder, audio) => !!LIB.playing && LIB.playing.folder === folder && LIB.playing.audio === audio;
+const slots = () => Math.max(1, Math.min(8, parseInt(state.cfg.slotsPerTerm, 10) || 1));
 
 /* =============== library: rendering =============== */
 function renderLibrary() {
   if (!$('#libBody')) return;
-  $('#tabStudents').setAttribute('aria-selected', LIB.view === 'history');
-  $('#tabGrid').setAttribute('aria-selected', LIB.view === 'grid');
-  $('#histView').hidden = LIB.view !== 'history';
-  $('#gridView').hidden = LIB.view !== 'grid';
-  $('#libYearWrap').hidden = LIB.view !== 'grid';
   $('#btnLibScan').disabled = !state.root;
   const webm = LIB.students.reduce((n, s) => n + s.recs.filter(r => /\.webm$/i.test(r.audio)).length, 0);
   $('#btnConvert').hidden = !webm || !state.root;
@@ -1542,12 +1698,13 @@ function renderLibrary() {
   const years = new Set([new Date().getFullYear()]);
   LIB.students.forEach(s => s.recs.forEach(r => years.add(r.year)));
   $('#libYear').innerHTML = [...years].sort((a, b) => b - a).map(y => `<option${y === LIB.year ? ' selected' : ''}>${y}</option>`).join('');
+  if (document.activeElement !== $('#slotsPerTerm')) $('#slotsPerTerm').value = slots();
   const total = LIB.students.reduce((n, s) => n + s.recs.length, 0);
   $('#libInfo').textContent = state.root && LIB.scannedAt ? `${total} recording${total === 1 ? '' : 's'} in the folder` : '';
   if (!state.root) {
     $('#stuList').innerHTML = '';
-    $('#histPane').innerHTML = '<p class="muted">Connect a folder to see recordings.</p>';
-    $('#gridView').innerHTML = '<p class="muted">Connect a folder to see recordings.</p>';
+    $('#histPane').innerHTML = '<p class="muted">Connect a recordings folder (Folder &amp; privacy) to see recordings.</p>';
+    $('#gridView').innerHTML = '<p class="muted">Connect a recordings folder (Folder &amp; privacy) to see recordings.</p>';
     return;
   }
   LIB.rows = libRows();
@@ -1556,7 +1713,7 @@ function renderLibrary() {
     LIB.selected = first ? first.folder : null; LIB.sel = new Set();
   }
   renderStudentList(); renderHistory();
-  if (LIB.view === 'grid') $('#gridView').innerHTML = renderGrid();
+  $('#gridView').innerHTML = renderGrid();
 }
 function renderStudentList() {
   const ul = $('#stuList');
@@ -1566,7 +1723,7 @@ function renderStudentList() {
         <span class="stuname">${esc(r.name)}${r.inClass ? '' : ' <span class="badge">not in class</span>'}</span>
         <span class="stumeta">${n ? `${n} recording${n === 1 ? '' : 's'} · latest ${esc(longDate(r.recs[n - 1].when))}` : 'No recordings yet'}</span>
       </button></li>`;
-  }).join('') : `<li class="muted" style="padding:10px">${LIB.q ? 'No students match.' : 'No students yet. Add a class list in Setup.'}</li>`;
+  }).join('') : `<li class="muted" style="padding:12px">${LIB.q ? 'No students match.' : 'No students yet. Add a class list in Setup.'}</li>`;
   const a = ul.querySelector('.stu.active'); if (a) a.scrollIntoView({ block: 'nearest' });
 }
 function selNote(r) {
@@ -1582,7 +1739,7 @@ function renderHistory() {
   if (!r) { pane.innerHTML = '<p class="muted">Choose a student on the left.</p>'; return; }
   const idx = LIB.rows.indexOf(r), n = r.recs.length;
   const head = `<div class="histhead">
-      <div><h3>${esc(r.name)}</h3>
+      <div><h2>${esc(r.name)}</h2>
         <div class="muted">${n ? `${n} recording${n === 1 ? '' : 's'}${n > 1 ? ` · ${esc(longDate(r.recs[0].when))} to ${esc(longDate(r.recs[n - 1].when))}` : ''}` : 'No recordings yet'}</div></div>
       <div class="row" style="margin:0">
         <button class="small" data-nav="-1"${idx <= 0 ? ' disabled' : ''}>← Previous student</button>
@@ -1597,26 +1754,40 @@ function renderHistory() {
       <button class="small" data-selnone${selCount ? '' : ' disabled'}>Clear</button>
       <span class="muted" data-selnote>${esc(selNote(r))}</span>
     </div>`;
+  const playingNow = !$('#libPlayer').paused;
   let list = '<ol class="timeline">', yr = null;
   r.recs.forEach((x, i) => {
     const y = x.when.getFullYear();
     if (y !== yr) { yr = y; list += `<li class="yearhead">${y}</li>`; }
-    const playing = LIB.playing && LIB.playing.folder === r.folder && LIB.playing.audio === x.audio;
-    const checked = LIB.sel.has(x.audio);
-    list += `<li class="rec${playing ? ' playing' : ''}${checked ? ' selected' : ''}" data-audio="${esc(x.audio)}">
-        <button class="playbtn" data-play="${i}" aria-label="Play the recording from ${esc(longDate(x.when))}">▶</button>
-        <div class="recmain">
-          <div class="recdate">${esc(longDate(x.when))}</div>
-          <div class="muted">${esc(termLabel(x))}${x.durationSec != null ? ' · ' + fmtDur(x.durationSec) : ''}</div>
+    const active = isActive(r.folder, x.audio), checked = LIB.sel.has(x.audio);
+    const showPause = active && playingNow;
+    list += `<li class="rec${active ? ' playing' : ''}${checked ? ' selected' : ''}" data-audio="${esc(x.audio)}">
+        <div class="recrow">
+          <button class="playbtn" data-play="${i}" aria-label="${showPause ? 'Pause' : 'Play'} the recording from ${esc(longDate(x.when))}">${showPause ? ICON_PAUSE : ICON_PLAY}</button>
+          <div class="recmain">
+            <div class="recdate">${esc(longDate(x.when))}</div>
+            <div class="muted">${esc(termLabel(x))}${x.durationSec != null ? ' · ' + fmtDur(x.durationSec) : ''}</div>
+          </div>
+          ${x.passageId ? `<span class="pchip ${pColor(x.passageId)}" title="Passage">${esc(x.passageId)}${x.level ? ' · ' + esc(x.level) : ''}</span>` : '<span class="pchip none">No passage</span>'}
+          ${x.meta ? '' : '<span class="badge abs" title="This audio file has no details file">no details</span>'}
+          <label class="selbox"><input type="checkbox" data-sel="${i}"${checked ? ' checked' : ''}> Select</label>
+          <button class="linkbtn" data-del="${i}" aria-label="Delete the recording from ${esc(longDate(x.when))}">Delete</button>
         </div>
-        ${x.passageId ? `<span class="pchip ${pColor(x.passageId)}" title="Passage">${esc(x.passageId)}${x.level ? ' · ' + esc(x.level) : ''}</span>` : '<span class="pchip none">No passage</span>'}
-        ${x.meta ? '' : '<span class="badge abs" title="This audio file has no details file">no details</span>'}
-        <label class="selbox"><input type="checkbox" data-sel="${i}"${checked ? ' checked' : ''}> Select</label>
-        <button class="linkbtn" data-del="${i}" aria-label="Delete the recording from ${esc(longDate(x.when))}">Delete</button>
+        ${active ? `<div class="wavewrap">
+            <canvas class="wave" tabindex="0" role="slider" aria-label="Playback position. Click or drag to move; left and right arrow keys skip 2 seconds." aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></canvas>
+            <div class="wavectl">
+              <span class="mono" data-wtime>0:00 / 0:00</span>
+              <span class="row" style="margin:0">
+                <button class="small" data-pause>${showPause ? 'Pause' : 'Play'}</button>
+                <button class="small" data-stop>${ICON_STOP} Stop</button>
+              </span>
+            </div>
+          </div>` : ''}
       </li>`;
   });
   list += '</ol>';
   pane.innerHTML = head + bar + list;
+  attachWave();
 }
 function updateSelectionUI() {
   const r = currentRow(); if (!r) return;
@@ -1631,73 +1802,200 @@ function updateSelectionUI() {
     const cb = li.querySelector('input[data-sel]'); if (cb) cb.checked = on;
   });
 }
-function markPlaying() {
-  $('#histPane').querySelectorAll('li.rec').forEach(li =>
-    li.classList.toggle('playing', !!LIB.playing && LIB.playing.folder === LIB.selected && LIB.playing.audio === li.dataset.audio));
-}
 function renderGrid() {
   const y = LIB.year, thisYear = new Date().getFullYear();
   const cur = y === thisYear ? state.cfg.term : null;
-  const counts = [0, 0, 0, 0];
+  const S = slots();
+  const n = LIB.rows.length;
+  if (!n) return '<p class="muted">No students yet. Add a class list in Setup.</p>';
+  const counts = Array.from({ length: 4 }, () => new Array(S).fill(0));
   const rowsHtml = LIB.rows.map((r, ri) => {
     const cells = [1, 2, 3, 4].map(t => {
       const inTerm = r.recs.filter(x => x.year === y && x.term === t);
-      const cls = t === cur ? ' class="curterm"' : '';
-      if (!inTerm.length) return `<td${cls}><span class="muted">—</span></td>`;
-      counts[t - 1]++;
-      const latest = inTerm[inTerm.length - 1];
-      const label = (inTerm.length > 1 ? inTerm.length + '× ' : '') + (latest.passageId || '✓');
-      return `<td${cls}><button class="small" data-goto="${ri}:${r.recs.indexOf(latest)}" title="${esc(longDate(latest.when))}">▶ ${esc(label)}</button></td>`;
+      let html = '';
+      for (let k = 0; k < S; k++) {
+        const cls = [k === 0 ? 'tstart' : '', t === cur ? 'curterm' : ''].filter(Boolean).join(' ');
+        const x = inTerm[k];
+        if (!x) { html += `<td class="${cls}"><span class="emptycell" title="Not recorded"></span></td>`; continue; }
+        counts[t - 1][k]++;
+        const extra = k === S - 1 && inTerm.length > S ? `<span class="more" title="${inTerm.length - S} more in this term">+${inTerm.length - S}</span>` : '';
+        const label = `▶ ${shortDate(x.when)}${x.passageId ? ' · ' + x.passageId : ''}`;
+        html += `<td class="${cls}"><button class="cellbtn ${x.passageId ? pColor(x.passageId) : 'pchip none'}" data-goto="${ri}:${r.recs.indexOf(x)}" title="${esc(longDate(x.when) + ' · ' + termLabel(x))}">${esc(label)}</button>${extra}</td>`;
+      }
+      return html;
     }).join('');
     return `<tr><th scope="row"><button class="linkbtn strong" data-open="${ri}">${esc(r.name)}</button>${r.inClass ? '' : ' <span class="badge">not in class</span>'}</th>${cells}</tr>`;
   }).join('');
-  const n = LIB.rows.length;
-  const head = [1, 2, 3, 4].map(t => `<th scope="col"${t === cur ? ' class="curterm"' : ''}>Term ${t}${t === cur ? ' <span class="muted">(now)</span>' : ''}</th>`).join('');
-  const foot = counts.map((c, i) => `<td${i + 1 === cur ? ' class="curterm"' : ''}><strong>${c}</strong> / ${n}</td>`).join('');
+  const head1 = [1, 2, 3, 4].map(t => `<th scope="colgroup" colspan="${S}" class="tg${t === cur ? ' curterm' : ''}">Term ${t}${t === cur ? ' · now' : ''}</th>`).join('');
+  const head2 = S > 1 ? `<tr><th></th>${[1, 2, 3, 4].map(t => Array.from({ length: S }, (_, k) => `<th scope="col" class="${k === 0 ? 'tstart' : ''}${t === cur ? ' curterm' : ''}">Recording ${k + 1}</th>`).join('')).join('')}</tr>` : '';
+  const foot = [1, 2, 3, 4].map(t => counts[t - 1].map((c, k) => `<td class="${k === 0 ? 'tstart' : ''}${t === cur ? ' curterm' : ''}">${c} / ${n}</td>`).join('')).join('');
   let missing = '';
   if (cur) {
-    const miss = LIB.rows.filter(r => !r.recs.some(x => x.year === y && x.term === cur)).map(r => r.name);
-    missing = miss.length ? `<p><strong>Still to record in Term ${cur}:</strong> ${esc(miss.join(', '))}</p>` : `<p class="ok">Everyone has a Term ${cur} recording.</p>`;
+    const short = LIB.rows.map(r => ({ r, have: r.recs.filter(x => x.year === y && x.term === cur).length })).filter(o => o.have < S);
+    missing = short.length
+      ? `<div class="misslist"><strong>Still to record in Term ${cur}${S > 1 ? ` (${S} each)` : ''}:</strong> ${esc(short.map(o => S > 1 ? `${o.r.name} (${o.have}/${S})` : o.r.name).join(', '))}</div>`
+      : `<div class="misslist done"><strong>✓ Everyone has ${S > 1 ? S + ' recordings' : 'a recording'} for Term ${cur}.</strong></div>`;
   }
-  if (!n) return '<p class="muted">No students yet. Add a class list in Setup.</p>';
-  return `${missing}<div class="gridwrap"><table class="termgrid"><thead><tr><th scope="col">Student</th>${head}</tr></thead>
-    <tbody>${rowsHtml}</tbody><tfoot><tr><th scope="row">Recorded</th>${foot}</tr></tfoot></table></div>
-    <p class="muted">Press ▶ to hear that term's latest recording, or a name to open their full history.</p>`;
+  return `${missing}<div class="gridwrap" style="margin-top:12px"><table class="termgrid">
+      <thead><tr class="terms"><th scope="col">Student</th>${head1}</tr>${head2}</thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr><th scope="row">Recorded</th>${foot}</tr></tfoot></table></div>
+    <p class="muted">Colours show the passage. If a term has more recordings than there are spaces, the extra count shows as +N; change <strong>Recordings per term</strong> above to see them all.</p>`;
 }
 
-/* =============== library: playback =============== */
+/* =============== library: player, waveform and scrubbing =============== */
+const player = () => $('#libPlayer');
+const waveKey = () => LIB.playing ? LIB.playing.folder + '/' + LIB.playing.audio : '';
+function playDuration() {
+  const p = player();
+  if (isFinite(p.duration) && p.duration > 0) return p.duration;
+  const w = WAVES.get(waveKey());
+  if (w && w.duration) return w.duration;
+  return (LIB.playing && LIB.playing.rec.durationSec) || 0;
+}
+async function computePeaks(rec) {
+  const f = await rec.handle.getFile();
+  const ctx = new OfflineAudioContext(1, 1, 8000);
+  const ab = await ctx.decodeAudioData(await f.arrayBuffer());
+  const data = ab.getChannelData(0), N = 1000, per = Math.max(1, Math.floor(data.length / N));
+  const peaks = new Float32Array(N); let max = 0;
+  for (let i = 0; i < N; i++) {
+    let m = 0; const s = i * per, e = Math.min(data.length, s + per);
+    for (let j = s; j < e; j++) { const v = Math.abs(data[j]); if (v > m) m = v; }
+    peaks[i] = m; if (m > max) max = m;
+  }
+  if (max > 0) for (let i = 0; i < N; i++) peaks[i] /= max;
+  return { peaks, duration: ab.duration };
+}
+async function attachWave() {
+  const cv = $('#histPane canvas.wave');
+  if (!cv || !LIB.playing) return;
+  // pointer scrubbing
+  const seekFromEvent = e => { const r = cv.getBoundingClientRect(); seekFrac((e.clientX - r.left) / r.width); };
+  cv.addEventListener('pointerdown', e => { LIB.scrubbing = true; cv.setPointerCapture(e.pointerId); seekFromEvent(e); });
+  cv.addEventListener('pointermove', e => { if (LIB.scrubbing) seekFromEvent(e); });
+  const end = () => { LIB.scrubbing = false; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('keydown', e => {
+    const p = player(), d = playDuration(), step = e.shiftKey ? 10 : 2;
+    if (e.key === 'ArrowLeft') p.currentTime = Math.max(0, p.currentTime - step);
+    else if (e.key === 'ArrowRight') p.currentTime = Math.min(d, p.currentTime + step);
+    else if (e.key === 'Home') p.currentTime = 0;
+    else if (e.key === 'End') p.currentTime = Math.max(0, d - 0.1);
+    else return;
+    e.preventDefault(); e.stopPropagation(); drawWave();
+  });
+  drawWave();
+  const key = waveKey();
+  if (!WAVES.has(key)) {
+    try { WAVES.set(key, await computePeaks(LIB.playing.rec)); }
+    catch (e) { WAVES.set(key, { peaks: null, duration: null, error: true }); log('Waveform unavailable for ' + LIB.playing.audio + ': ' + e.message, 'warn'); }
+  }
+  drawWave();
+}
+function seekFrac(f) {
+  const p = player(), d = playDuration();
+  if (!d) return;
+  p.currentTime = Math.max(0, Math.min(d - 0.05, f * d));
+  drawWave();
+}
+function drawWave() {
+  const p = player(), d = playDuration(), t = p.currentTime || 0;
+  $('#npTime').textContent = LIB.playing ? `${fmtTime(t)} / ${fmtTime(d)}` : '';
+  const cv = document.querySelector('#histPane canvas.wave');
+  if (!cv || !LIB.playing || !cv.isConnected || cv.closest('[hidden]')) return;
+  const dpr = window.devicePixelRatio || 1, W = Math.max(60, cv.clientWidth), H = cv.clientHeight || 84;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const frac = d ? Math.min(1, t / d) : 0, mid = H / 2, w = WAVES.get(waveKey());
+  if (!w || !w.peaks) {
+    g.fillStyle = '#d7dbe6'; g.fillRect(0, mid - 1, W, 2);
+    g.fillStyle = '#4f46e5'; g.fillRect(0, mid - 1, W * frac, 2);
+    g.fillStyle = '#5d6577'; g.font = '12px system-ui, sans-serif';
+    g.fillText(w && w.error ? 'Waveform not available for this file' : 'Drawing waveform…', 8, 16);
+  } else {
+    const bw = 2, gap = 1, n = Math.floor(W / (bw + gap)), N = w.peaks.length;
+    for (let i = 0; i < n; i++) {
+      const s = Math.floor(i / n * N), e = Math.max(s + 1, Math.floor((i + 1) / n * N));
+      let m = 0; for (let j = s; j < e; j++) if (w.peaks[j] > m) m = w.peaks[j];
+      const h = Math.max(2, m * (H - 10)), x = i * (bw + gap);
+      g.fillStyle = (x + bw / 2) / W <= frac ? '#4f46e5' : '#c5cad6';
+      g.fillRect(x, mid - h / 2, bw, h);
+    }
+  }
+  const px = Math.round(frac * W);
+  g.fillStyle = '#1b2130'; g.fillRect(Math.min(W - 2, Math.max(0, px - 1)), 0, 2, H);
+  const tl = document.querySelector('#histPane [data-wtime]'); if (tl) tl.textContent = `${fmtTime(t)} / ${fmtTime(d)}`;
+  cv.setAttribute('aria-valuenow', Math.round(frac * 100));
+  cv.setAttribute('aria-valuetext', `${fmtTime(t)} of ${fmtTime(d)}`);
+}
+function updatePlayIcons() {
+  const p = player(), playing = !!LIB.playing && !p.paused;
+  const np = $('#npPlay');
+  np.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+  np.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  np.disabled = !LIB.playing;
+  $('#btnStopQueue').disabled = !LIB.playing;
+  $('#histPane').querySelectorAll('li.rec').forEach(li => {
+    const active = !!LIB.playing && LIB.playing.folder === LIB.selected && LIB.playing.audio === li.dataset.audio;
+    const b = li.querySelector('.playbtn');
+    if (b) {
+      b.innerHTML = active && playing ? ICON_PAUSE : ICON_PLAY;
+      b.setAttribute('aria-label', b.getAttribute('aria-label').replace(/^(Play|Pause)/, active && playing ? 'Pause' : 'Play'));
+    }
+    const pb = li.querySelector('[data-pause]'); if (pb) pb.textContent = playing ? 'Pause' : 'Play';
+  });
+}
+function togglePlayPause() {
+  const p = player();
+  if (!LIB.playing) return;
+  if (p.paused) p.play().catch(e => log('Playback failed: ' + e.message, 'err')); else p.pause();
+}
 async function playRec(r, x, queue = []) {
   try {
     const f = await x.handle.getFile();
     if (LIB.url) URL.revokeObjectURL(LIB.url);
     LIB.url = URL.createObjectURL(f);
-    const p = $('#libPlayer');
+    const p = player();
     p.src = LIB.url;
-    LIB.playing = { folder: r.folder, audio: x.audio };
+    LIB.playing = { folder: r.folder, audio: x.audio, rec: x, name: r.name };
     LIB.queue = queue;
     $('#libNow').textContent = `${r.name} · ${longDate(x.when)} · ${termLabel(x)}${x.passageId ? ' · ' + x.passageId : ''}`;
-    $('#libQueueInfo').textContent = LIB.qTotal > 1 ? `Recording ${LIB.qTotal - queue.length} of ${LIB.qTotal}${queue.length ? ', next plays automatically' : ''}` : '';
-    $('#btnStopQueue').hidden = LIB.qTotal <= 1;
-    markPlaying();
+    $('#libQueueInfo').textContent = LIB.qTotal > 1 ? `Recording ${LIB.qTotal - queue.length} of ${LIB.qTotal}${queue.length ? ', the next plays automatically' : ''}` : '';
+    if (LIB.selected !== r.folder) { LIB.selected = r.folder; LIB.sel = new Set(); renderStudentList(); }
+    renderHistory();
+    updatePlayIcons();
     await p.play();
   } catch (e) {
     log('Could not play ' + x.audio + ': ' + e.message, 'err');
     $('#libNow').textContent = 'Could not play that file. If it is still downloading from OneDrive, try again in a moment.';
   }
 }
+// Stop: back to the start and cancel any "play selected" list. The waveform stays open.
 function stopPlayback() {
-  const p = $('#libPlayer'); p.pause();
-  LIB.queue = []; LIB.qTotal = 0; LIB.playing = null;
-  $('#libQueueInfo').textContent = ''; $('#btnStopQueue').hidden = true;
-  markPlaying();
+  const p = player(); p.pause();
+  try { p.currentTime = 0; } catch { }
+  LIB.queue = []; LIB.qTotal = 0;
+  $('#libQueueInfo').textContent = LIB.playing ? 'Stopped' : '';
+  updatePlayIcons(); drawWave();
+}
+function closePlayer() {
+  const p = player(); p.pause(); p.removeAttribute('src'); p.load();
+  LIB.playing = null; LIB.queue = []; LIB.qTotal = 0;
+  $('#libNow').textContent = 'Nothing playing. Press ▶ on any recording below.';
+  $('#libQueueInfo').textContent = '';
+  updatePlayIcons(); renderHistory(); drawWave();
 }
 async function deleteRec(r, x) {
   if (!confirm(`Delete this recording of ${r.name} from ${longDate(x.when)}?\n\n${x.audio}\n\nIt goes to the OneDrive recycle bin.`)) return;
   try {
-    if (LIB.playing && LIB.playing.audio === x.audio && LIB.playing.folder === r.folder) stopPlayback();
+    if (isActive(r.folder, x.audio)) closePlayer();
     await x.dir.removeEntry(x.audio);
     if (x.metaDir && x.metaName) { try { await x.metaDir.removeEntry(x.metaName); } catch { } }
     LIB.sel.delete(x.audio);
+    WAVES.delete(r.folder + '/' + x.audio);
     if (state.last && state.last.audio === x.audio && state.last.key.toLowerCase() === r.folder.toLowerCase()) setLast(null);
     log('Deleted ' + x.audio, 'warn');
     libMsg(`Deleted ${x.audio}.`, 'warn');
@@ -1727,29 +2025,48 @@ async function convertAllWebm() {
         Object.assign(m, { audioFile: base + '.mp3', mimeType: 'audio/mpeg', durationSec: Math.round(res.duration * 10) / 10, sizeBytes: res.blob.size, convertedFrom: r.audio, convertedAt: new Date().toISOString() });
         await writeFile(r.metaDir, r.metaName, JSON.stringify(m, null, 2));
       }
-      if (LIB.playing && LIB.playing.audio === r.audio) stopPlayback();
+      if (isActive(s.folder, r.audio)) closePlayer();
       await r.dir.removeEntry(r.audio);
       ok++;
     } catch (e) { fail++; log(`Could not convert ${r.audio}: ${e.message}`, 'err'); }
   }
   LIB.converting = false; $('#btnConvert').disabled = false;
   await scanLibrary();
-  libMsg(`Converted ${ok} recording${ok === 1 ? '' : 's'} to MP3.` + (fail ? ` ${fail} could not be converted (see Diagnostics → Log).` : ''), fail ? 'warn' : 'ok');
+  libMsg(`Converted ${ok} recording${ok === 1 ? '' : 's'} to MP3.` + (fail ? ` ${fail} could not be converted (see Folder & privacy → Diagnostics → Log).` : ''), fail ? 'warn' : 'ok');
+}
+function setSlots(v) {
+  v = Math.max(1, Math.min(8, parseInt(v, 10) || 1));
+  state.cfg.slotsPerTerm = v; $('#slotsPerTerm').value = v;
+  queueSave();
+  $('#gridView').innerHTML = renderGrid();
 }
 function bindLibrary() {
-  $('#tabStudents').onclick = () => { LIB.view = 'history'; renderLibrary(); };
-  $('#tabGrid').onclick = () => { LIB.view = 'grid'; renderLibrary(); };
   $('#libClassOnly').onchange = e => { LIB.classOnly = e.target.checked; renderLibrary(); };
   $('#libSearch').oninput = e => { LIB.q = e.target.value; renderLibrary(); };
-  $('#libYear').onchange = e => { LIB.year = +e.target.value; renderLibrary(); };
+  $('#libYear').onchange = e => { LIB.year = +e.target.value; $('#gridView').innerHTML = renderGrid(); };
   $('#btnLibScan').onclick = () => { libMsg(''); scanLibrary(); };
   $('#btnConvert').onclick = convertAllWebm;
+  $('#slotsPerTerm').addEventListener('change', e => setSlots(e.target.value));
+  $('#slotsMinus').onclick = () => setSlots(slots() - 1);
+  $('#slotsPlus').onclick = () => setSlots(slots() + 1);
+  $('#btnStopQueue').innerHTML = ICON_STOP;
+  $('#npPlay').onclick = togglePlayPause;
   $('#btnStopQueue').onclick = stopPlayback;
-  $('#libPlayer').addEventListener('ended', () => {
+  const p = player();
+  p.addEventListener('play', () => {
+    if (LIB.qTotal <= 1) $('#libQueueInfo').textContent = '';
+    updatePlayIcons(); cancelAnimationFrame(LIB.raf);
+    const tick = () => { drawWave(); if (!p.paused) LIB.raf = requestAnimationFrame(tick); };
+    tick();
+  });
+  p.addEventListener('pause', () => { updatePlayIcons(); drawWave(); });
+  ['seeked', 'loadedmetadata', 'durationchange', 'timeupdate'].forEach(ev => p.addEventListener(ev, () => { if (p.paused) drawWave(); }));
+  p.addEventListener('ended', () => {
     const next = LIB.queue.shift();
     if (next) playRec(next.r, next.x, LIB.queue);
-    else { LIB.qTotal = 0; $('#btnStopQueue').hidden = true; $('#libQueueInfo').textContent = ''; }
+    else { LIB.qTotal = 0; $('#libQueueInfo').textContent = 'Finished'; updatePlayIcons(); drawWave(); }
   });
+  window.addEventListener('resize', drawWave);
   $('#stuList').addEventListener('click', e => {
     const b = e.target.closest('[data-stu]'); if (!b) return;
     if (LIB.selected !== b.dataset.stu) { LIB.selected = b.dataset.stu; LIB.sel = new Set(); }
@@ -1759,7 +2076,13 @@ function bindLibrary() {
   pane.addEventListener('click', e => {
     const r = currentRow(); if (!r) return;
     const t = e.target.closest('button'); if (!t) return;
-    if (t.dataset.play !== undefined) { LIB.qTotal = 1; playRec(r, r.recs[+t.dataset.play]); }
+    if (t.dataset.play !== undefined) {
+      const x = r.recs[+t.dataset.play];
+      if (isActive(r.folder, x.audio)) togglePlayPause();
+      else { LIB.qTotal = 1; playRec(r, x); }
+    }
+    else if (t.hasAttribute('data-pause')) togglePlayPause();
+    else if (t.hasAttribute('data-stop')) stopPlayback();
     else if (t.hasAttribute('data-playsel')) {
       const items = r.recs.filter(x => LIB.sel.has(x.audio));
       if (!items.length) return;
@@ -1782,15 +2105,33 @@ function bindLibrary() {
   });
   $('#gridView').addEventListener('click', e => {
     const t = e.target.closest('button'); if (!t) return;
-    const open = (ri) => {
+    const open = ri => {
       const r = LIB.rows[ri]; if (!r) return null;
-      LIB.view = 'history'; LIB.selected = r.folder; LIB.sel = new Set();
-      renderLibrary(); $('#libSection').scrollIntoView({ block: 'start' });
+      if (LIB.selected !== r.folder) { LIB.selected = r.folder; LIB.sel = new Set(); }
+      go('history');
+      renderStudentList(); renderHistory();
       return r;
     };
     if (t.dataset.goto) { const [ri, i] = t.dataset.goto.split(':').map(Number); const r = open(ri); if (r) { LIB.qTotal = 1; playRec(r, r.recs[i]); } }
     else if (t.dataset.open !== undefined) open(+t.dataset.open);
   });
+  updatePlayIcons();
+}
+
+/* =============== page navigation =============== */
+const PAGES = ['record', 'history', 'overview', 'setup', 'folder'];
+function go(page, setHash = true) {
+  if (!PAGES.includes(page)) page = 'record';
+  state.page = page;
+  $$('.page').forEach(s => { s.hidden = s.dataset.page !== page; });
+  $$('.nav a').forEach(a => {
+    const on = a.dataset.page === page;
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  if (setHash && location.hash !== '#' + page) history.replaceState(null, '', '#' + page);
+  window.scrollTo(0, 0);
+  if (page === 'history') requestAnimationFrame(drawWave);
 }
 
 /* =============== diagnostics =============== */
@@ -1883,16 +2224,18 @@ function init() {
 
   // Mouse clicks shouldn't leave focus on buttons, so Space always means Record/Stop.
   document.addEventListener('click', e => { const b = e.target.closest('button'); if (b && e.detail > 0) b.blur(); });
-  // Remember where the teacher last clicked: in the Library, Space plays/pauses instead of recording.
-  document.addEventListener('pointerdown', e => { state.area = e.target.closest('#libSection') ? 'lib' : 'other'; }, true);
+  // Shortcuts depend on the page: Space records on the Record page, and plays/pauses on Recording history.
   document.addEventListener('keydown', e => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target;
-    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'SUMMARY', 'AUDIO', 'A'].includes(t.tagName) || t.isContentEditable) return;
-    if (state.area === 'lib') {
-      if (e.code === 'Space') { e.preventDefault(); const p = $('#libPlayer'); if (p.src) { if (p.paused) p.play(); else p.pause(); } }
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'SUMMARY', 'AUDIO', 'A', 'CANVAS'].includes(t.tagName) || t.isContentEditable) {
+      if (!(t.tagName === 'CANVAS' && e.code === 'Space')) return;
+    }
+    if (state.page === 'history') {
+      if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
       return;
     }
+    if (state.page !== 'record') return;
     if (e.code === 'Space') { e.preventDefault(); toggleRec(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); move(1, 'skipped'); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); move(-1); }
@@ -1905,7 +2248,10 @@ function init() {
     try { state.micId = (await idbGet('micId')) || ''; } catch { }
     cfgToForm(); renderAll();
     await restore();
+    go(location.hash.slice(1) || (state.root ? 'record' : 'folder'));
   })();
+  window.addEventListener('hashchange', () => go(location.hash.slice(1), false));
+  $('#folderChip').onclick = () => { if (state.pending && !state.root) reconnect(); location.hash = 'folder'; };
 }
 init();
 </script>

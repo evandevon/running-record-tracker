@@ -2,14 +2,15 @@
 
 A browser tool for teachers to record students reading aloud several times a year and keep the recordings organised, so you can hear whether their reading has improved.
 
-**Status:** v0.3.0. Record students one after another, saved as MP3s that carry the student, date and passage text inside the file. The **Library** shows each child's full recording history: play any recording, or tick several and play them back to back. Trimming and marking errors come next.
+**Status:** v0.4.0. Record students one after another, saved as MP3s that carry the student, date and passage text inside the file. **Recording history** shows every recording a child has had, with a waveform you can scrub through and play/pause/stop on each one. **Term overview** shows who has been recorded each term, with as many recordings per term as you choose. Trimming and marking errors come next.
 
 ## Quick start
-1. Open the page in **Chrome or Edge** on a laptop.
+1. Open the page in **Chrome or Edge** on a laptop. It opens on **Folder & privacy**.
 2. Click **Choose folder…** and pick (or make) a dedicated folder inside your OneDrive, e.g. `Reading Samples`.
 3. In **Setup**, paste your class list and add a passage (optional).
 4. Press **Record** (or the Space bar) for the first student, then press it again to stop. The recording is saved and the next student comes up.
-5. In the **Library**, pick a student to see every recording they've had. Press ▶ on any, or tick several and press **Play selected**. **Term overview** shows who still needs recording this term.
+5. In **Recording history**, pick a student to see every recording they've had. Press ▶ on any (it becomes ❚❚ to pause), drag along the waveform to scrub, or tick several and press **Play selected**.
+6. **Term overview** shows who still needs recording this term. Use **Recordings per term** to show more than one space per term.
 
 Recordings are saved as `Students/Billy Bob/Billy Bob - 2026 Term4 Week02 P1.mp3`, with a details file for each in `Students/Billy Bob/Recording details/`. MP3s play anywhere; the passage text is stored in the file's lyrics tag. (WebM can be chosen instead in Setup.)
 
